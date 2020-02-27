@@ -42,3 +42,7 @@ dem <- raster('./dem/dem_90m/w001001.adf')
 #writeRaster(twi[[2]], "./dem/twi_wy.tif", format = "GTiff")
 twi <- raster('./dem/twi_wy.tif')
 twi <- projectRaster(twi, pirgd, method = "bilinear")
+
+#load solar insolation. calculated in arcmap
+insol <- raster('./solar/wy_solar_insolation.tif')
+insol <- projectRaster(insol, pirgd, method = "bilinear")
