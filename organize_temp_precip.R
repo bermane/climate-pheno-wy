@@ -1,5 +1,4 @@
 #code to mosaic together daymet tiles and crop to study area
-#afterwards figure out mean pirgd in study area and create various temp and precip indices
 
 #load packages
 library(rgdal)

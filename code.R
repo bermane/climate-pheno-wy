@@ -1,4 +1,4 @@
-#load relevant packages
+#load packages
 library(rgdal)
 library(sp)
 library(raster)
