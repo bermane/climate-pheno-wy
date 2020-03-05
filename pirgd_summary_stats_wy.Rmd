@@ -82,6 +82,9 @@ plot(treat_bb, add = T)
 #plot histogram of mean pirgd
 hist(pirgd_m, main = "Mean PIRGd in Wyoming from 2002-2018", xlab = "DOY")
 
+#plot boxplot of mean pirgd
+boxplot(pirgd_m, ylab = "DOY", main = "Boxplot of Mean PIRGd dates in WY from 2002-2018")
+
 #crop mean pirgd to this bb
 pirgd_m_bb <- crop(pirgd_m, treat_bb)
 
@@ -121,8 +124,11 @@ plot(pirgd_med, add = T,
          font = 2, line = 0.5, cex = 1))
 plot(treat_bb, add = T)
 
-#plot histogram of mean pirgd
+#plot histogram of median pirgd
 hist(pirgd_med, main = "Median PIRGd in Wyoming from 2002-2018", xlab = "DOY")
+
+#plot boxplot of median pirgd
+boxplot(pirgd_med, ylab = "DOY", main = "Boxplot of Median PIRGd dates in WY from 2002-2018")
 
 #crop median pirgd to this bb
 pirgd_med_bb <- crop(pirgd_med, treat_bb)
@@ -175,7 +181,7 @@ pirgd_var_bb <- crop(pirgd_var2, treat_bb)
 
 #plot pirgd var raster for SW Wyoming
 plot(pirgd_var_bb, main = "Variance of PIRGd in SW Wyoming from 2002-2018",
-     legend.args = list(text = 'DOY', side = 1, 
+     legend.args = list(text = 'Days', side = 1, 
          font = 2, line = 0.5, cex = 1))
 
 #plot histogram of mean pirgd
@@ -187,45 +193,53 @@ rm(pirgd_var, pirgd_var2, pirgd_var_bb)
 
 ## Mid-Range of PIRGd in Wyoming and SW Wyoming
 
-(Max-Min)/2
+Min + (Max-Min)/2
 
 ```{r, echo=FALSE, message=FALSE}
 #calc mid pirgd for each pixel
-pirgd_max <- calc(pirgd, function(x) {max(x,na.rm = T)})
-pirgd_min <- calc(pirgd, function(x) {min(x,na.rm = T)})
+pirgd_max <- calc(pirgd, function(x) {
+        if(sum(is.na(x)) < 17) {max(x, na.rm = T)} else{NA}
+        })
+
+pirgd_min <- calc(pirgd, function(x) {
+        if(sum(is.na(x)) < 17) {min(x, na.rm = T)} else{NA}
+        })
+
+pirgd_midrange <- pirgd_min + (pirgd_max - pirgd_min)/2
 
 #only save pirgd var value if less than half of years are missing
 #we have 17 years total
-pirgd_var[pirgd_na > 8] <- NA
+pirgd_midrange[pirgd_na > 8] <- NA
 
 #round to whole DOY
-pirgd_var <- round(pirgd_var)
+pirgd_midrange <- round(pirgd_midrange)
 
-pirgd_var2 <- pirgd_var
-pirgd_var2[pirgd_var2 > 5000] <- NA
-#write pirgd var raster
-#writeRaster(pirgd_var, './emodis/pirgd/pirgd_var_wy_2002_2018.tif', format = "GTiff", overwrite = F)
+#write pirgd midrange raster
+#writeRaster(pirgd_midrange, '/Volumes/SSD/climate_effects/emodis/pirgd/pirgd_midrange_wy_2002_2018.tif', format = "GTiff", overwrite = F)
 
 #plot var PIRGd in WY
-plot(wy, main = "Variance of PIRGd in Wyoming from 2002-2018")
-plot(pirgd_var2, add = T,
-     legend.args = list(text = 'Days', side = 1, 
+plot(wy, main = "Midrange of PIRGd in Wyoming from 2002-2018")
+plot(pirgd_midrange, add = T,
+     legend.args = list(text = 'DOY', side = 1, 
          font = 2, line = 0.5, cex = 1))
 plot(treat_bb, add = T)
 
 #plot histogram of var pirgd
-hist(pirgd_var2, main = "Variance of PIRGd in Wyoming from 2002-2018", xlab = "Days")
+hist(pirgd_midrange, main = "Midrange of PIRGd in Wyoming from 2002-2018", xlab = "Days")
 
 #crop var pirgd to this bb
-pirgd_var_bb <- crop(pirgd_var2, treat_bb)
+pirgd_midrange_bb <- crop(pirgd_midrange, treat_bb)
 
 #plot pirgd var raster for SW Wyoming
-plot(pirgd_var_bb, main = "Variance of PIRGd in SW Wyoming from 2002-2018",
+plot(pirgd_midrange_bb, main = "Midrange of PIRGd in SW Wyoming from 2002-2018",
      legend.args = list(text = 'DOY', side = 1, 
          font = 2, line = 0.5, cex = 1))
 
 #plot histogram of mean pirgd
-hist(pirgd_var_bb, main = "Variance of PIRGd in SW Wyoming from 2002-2018", xlab = "DOY")
+hist(pirgd_midrange_bb, main = "Midrange of PIRGd in SW Wyoming from 2002-2018", xlab = "DOY")
+
+#remove variables
+rm(pirgd_max, pirgd_min, pirgd_midrange, pirgd_midrange_bb)
 
 ```
 
