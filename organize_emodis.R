@@ -1,5 +1,6 @@
 #code to stack and crop emodis PIRGd calculated from SOSd and PGSd
 #calculate mean pirgd in each pixel over time period
+#and other summary statistics for all of WY and smaller SW sub-region
 #writes files to disk to be able to use for future analyses
 
 #load packages
@@ -12,7 +13,7 @@ setwd('/Volumes/SSD/climate_effects')
 
 #load wyoming shapefile
 wy <- readOGR('./reference/wyoming.shp')
-#transport to CRS of emodis
+#transform to CRS of emodis
 wy <- spTransform(wy, "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs")
 
 #load emodis data
@@ -48,11 +49,14 @@ rm(sosd, pgsd, pirgd_hold)
 names(pirgd) <- 2002:2018
 
 #write pirgd stack to disk
-writeRaster(pirgd, './emodis/pirgd/pirgd_wy_2002_2018.tif', format = "GTiff")
+#writeRaster(pirgd, './emodis/pirgd/pirgd_wy_2002_2018.tif', format = "GTiff")
 
 #remove and reload brick for mean pirgd processing
 rm(pirgd)
 pirgd <- brick('./emodis/pirgd/pirgd_wy_2002_2018.tif')
+
+#mask to WY before calc summary stats
+pirgd <- mask(pirgd, wy)
 
 #calc mean pirgd for each pixel
 pirgd_m <- calc(pirgd, function(x) {mean(x,na.rm = T)})
@@ -68,4 +72,7 @@ pirgd_m[pirgd_na > 8] <- NA
 pirgd_m <- round(pirgd_m)
 
 #write pirgd mean raster
-writeRaster(pirgd_m, './emodis/pirgd/pirgd_mean_wy_2002_2018.tif', format = "GTiff", overwrite = T)
+#writeRaster(pirgd_m, './emodis/pirgd/pirgd_mean_wy_2002_2018.tif', format = "GTiff", overwrite = T)
+
+#plot pirgd mean raster
+plot(pirgd_m, main = "Mean PIRGd 2002-2018 in Wyoming")
