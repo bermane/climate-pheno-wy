@@ -2,6 +2,7 @@
 library(daymetr)
 library(sp)
 library(rgdal)
+library(tidyverse)
 
 #set wd
 setwd('/Volumes/SSD/climate_effects')
@@ -12,9 +13,9 @@ tiles <- c(12095, 12096, 12097, 12098,
            11735, 11736, 11737, 11738)
 
 for(tt in tiles){
-  for(yr in 2001:2018){
+  for(yr in c(2000,2019)){
     for(param in c("tmax", "prcp")) {
-      download_daymet_tiles(tiles = tt, start = yr, end = yr, param = param, path = "./temp")
+      download_daymet_tiles(tiles = tt, start = yr, end = yr, param = param, path = str_c("./", param))
     }
   }
 }
