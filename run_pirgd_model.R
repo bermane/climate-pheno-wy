@@ -17,6 +17,7 @@ library(berryFunctions)
 library(effects)
 library(ggplot2)
 library(car)
+library(performance)
 
 #set wd
 setwd('/Volumes/SSD/climate_effects')
@@ -48,9 +49,22 @@ dat2 <- select(dat2, -c(rain_low_mar_apr, rain_med_mmar_mmay, rain_hi_apr_may,
                         vp_min_low_mar_apr, vp_min_med_mmar_mmay, vp_min_hi_apr_may,
                         vp_avg_low_mar_apr, vp_avg_med_mmar_mmay, vp_avg_hi_apr_may))
 
-#remove homer annual layers since we are moving forward without them
-#remove columns with missing data due to elevation levels
-dat2 <- select(dat2, -c(herb_homer_ann, sage_homer_ann, shrub_homer_ann))
+#remove all veg layers since we are moving forward without them
+dat2 <- select(dat2, -c(herb_homer_ann, sage_homer_ann, shrub_homer_ann, herb_homer,
+                        sage_homer, shrub_homer, ann_forb_rap, bare_ground_rap,
+                        perenn_forb_rap, shrub_rap, tree_rap, ann_perenn_forb_rap))
+
+#remove vapor pressure variables
+dat2 <- select(dat2, -c(vp_min_elev, vp_avg_elev, vp_min_jan_apr, vp_avg_jan_apr))
+
+#remove time1-PIRGd variables
+dat2 <- select(dat2, -c(solar_jan_pirgd, rain_oct_pirgd, rain_jan_pirgd,
+                        gdd_jan_pirgd, pdsi_jan_pirgd_mean, pdsi_jan_pirgd_min,
+                        pdsi_jan_pirgd_med))
+
+#remove vpd by elev. keep in values from jan-apr
+dat2 <- select(dat2, -c(vpd_tmax_mean_elev, vpd_tmin_mean_elev, vpd_tavg_mean_elev))
+
 
 #remove any remaining missing data points for PIRGd or snowmelt
 #2 points for pirgd
@@ -82,7 +96,7 @@ dat2$lc <- as.factor(dat2$lc)
 #check to make sure correct starting column -- start with dem!!
 colnames(dat2)[7]
 ncol(dat2)
-for(col_id in 7:53){
+for(col_id in 7:36){
   
   #set varible name
   vari <- colnames(dat2)[col_id]
@@ -96,7 +110,7 @@ for(col_id in 7:53){
   f2 <- fitted(m)
   
   #set up utput plot
-  jpeg(str_c('output/norm_equal_var_test_plots/' ,vari, '.jpeg'), width = 900, height = 600)
+  jpeg(str_c('output/final/norm_equal_var_test_plots/' ,vari, '.jpeg'), width = 900, height = 600)
   
   #plot graphs to test for normality and equal variance
   op <- par(mfrow = c(2, 2), mar = c(4, 4, 3, 2))
@@ -124,20 +138,22 @@ quad_df <- data.frame(var = character(), quad_coef = numeric(), quad_95 = numeri
 #check to make sure correct starting column -- start with dem!!
 colnames(dat2)[7]
 ncol(dat2)
-for(col_id in 7:53){
+for(col_id in 7:36){
   
-  #set varible name
+  #set variable name
   vari <- colnames(dat2)[col_id]
   
   #fit a linear mixed model with landcover, random effect, and variable
-  m <- eval(substitute(lme(pirgd ~ lc + variable, random = ~ 1 | id, data = dat2),
+  m <- eval(substitute(lme(pirgd ~ lc + variable, random = ~ 1 | id, 
+                           data = dat2, method = 'ML'),
                        list(variable = as.name(vari))))
   
   #get summary
   s <- summary(m)
     
   #fit with quadratic term  
-  m2 <- eval(substitute(lme(pirgd ~ lc + poly(variable, 2, raw = TRUE), random = ~ 1 | id, data = dat2),
+  m2 <- eval(substitute(lme(pirgd ~ lc + poly(variable, 2, raw = TRUE), random = ~ 1 | id, 
+                            data = dat2, method = 'ML'),
                        list(variable = as.name(vari))))
   
   #get summary
@@ -175,15 +191,15 @@ dat3 <- dat2
 #which columns to rescale? Want everything after dem
 colnames(dat3)[7]
 ncol(dat3)
-#7 to 50
+#7 to 36
 
 #rescale variables between 0 and 1
-for(i in 7:53){
+for(i in 7:36){
   dat3[,i] <- scale(dat3[,i])
 }
 
 #test fit a linear model with only elevation
-m <- lm(pirgd ~ lc + dem, dat3, method = 'ML')
+m <- lm(pirgd ~ lc + dem, dat3)
 
 #test fit a linear mixed model with only elevation
 m2 <- lme(pirgd ~ lc + dem, random = ~ 1 | id, data = dat3, method = 'ML')
@@ -199,7 +215,7 @@ AIC(m2)
 #check into correlation between all variables
 #compute correlation matrix
 #make sure to check including all columns!!!
-cor_m <- cor(dat3[,7:53])
+cor_m <- cor(dat3[,7:36])
 cor_m <- round(cor_m, 2)
 
 #create output table of overall correlations that are significant
@@ -218,61 +234,23 @@ for(i in 1:nrow(cor_m)){
 }
 
 #write to csv file
-write.csv(cor_df, file = 'output/correlation results - 2020-09-17.csv')
-
-#check correlation between bare ground and the sum of all other rap variables.
-#use raw values instead of rescaled
-bg <- dat2$bare_ground_rap
-sum_rap <- dat2$shrub_rap + dat2$ann_forb_rap + dat2$perenn_forb_rap +
-  dat2$tree
-
-#calc correlation
-cor(bg, sum_rap)
-
-#very high correlation, remove bare ground from analysis below
-rm(bg, sum_rap)
-
-#check into correlation between pirgd and ss
-pairs(dat3[, c('pirgd', 'ss')], upper.panel = panel.smooth,
-      lower.panel = panel.cor)
-
-#correlation across different temperature variables and their relationship to pirgd
-pairs(dat3[, c("pirgd", "gdd_jan_pirgd", "gdd_jan_earlyavg_pirgd","gdd_elev",
-               "chill_oct_apr", "chill_jan_apr", "chill_jan_may", "solar_jan_pirgd",
-               "solar_jan_apr", "dem")], 
-      upper.panel = panel.smooth, lower.panel = panel.cor, cex.labels = 1.5)
-
-#correlation across different precip variables and their relationship to pirgd
-pairs(dat3[, c('pirgd', 'snow_oct_apr', 'rain_oct_pirgd', 'rain_jan_pirgd', 'rain_elev',
-               'tot_prcp_oct_apr', 'dem', 'twi', 'vp_avg_jan_apr', 'vp_avg_elev', 'snowmelt')], 
-      upper.panel = panel.smooth, lower.panel = panel.cor, cex.labels = 1.5)
-
-#correlation across different drought variables and their relationship to pirgd
-pairs(dat3[, c('pirgd', 'pdsi_apr_apr_min', 'pdsi_mar_apr_min', 'pdsi_jan_pirgd_min',
-               'pdsi_apr_apr_mean', 'pdsi_mar_apr_mean', 'pdsi_jan_pirgd_mean')], 
-      upper.panel = panel.smooth, lower.panel = panel.cor, cex.labels = 1.5)
-
-#correlation across different veg component variables and their relationship to pirgd
-pairs(dat3[, c('pirgd', 'herb_homer', 'sage_homer', 'shrub_homer',
-               'ann_forb_rap', 'bare_ground_rap', 'perenn_forb_rap',
-               'shrub_rap', 'tree_rap', 'ann_perenn_forb_rap')], 
-      upper.panel = panel.smooth, lower.panel = panel.cor, cex.labels = 1.5)
+write.csv(cor_df, file = 'output/final/correlation results - 2020-10-09.csv')
 
 ########################################################
 ###TEST VARIABLES FOR NON-ZERO and NON-SIGN SWITCHING###
 ########################################################
 
 #which columns do we want to test? everything after landcover
-colnames(dat3)[6]
+colnames(dat3)[7]
 ncol(dat3)
-#7 to 47
+#7 to 36
 
 #allocate dataframe to save coefficients
 uni_df <- data.frame(var = character(), beta = numeric(), beta_sq = numeric(), se_95 = numeric(), se_95_sq = numeric(),
-                     sign = character(), sign_sq = character(), aic = numeric())
+                     sign = character(), sign_sq = character(), aic = numeric(), mar_r2 = numeric())
 
 #loop through variables
-for(i in 7:53){
+for(i in 7:36){
   
   #get column to test
   var <- colnames(dat3)[i]
@@ -299,6 +277,7 @@ for(i in 7:53){
       se_95 <- s$tTable[str_c('poly(', var, ', 2, raw = TRUE)1'),"Std.Error"]*1.96
       se_95_sq <- s$tTable[str_c('poly(', var, ', 2, raw = TRUE)2'),"Std.Error"]*1.96
       aic <- s$AIC
+      mar_r2 <- suppressWarnings(performance::r2(m)$R2_marginal)
       
       #find whether signs are zero/positive/negative
       if((beta - se_95 < 0) & (beta + se_95 < 0)) sign <- 'negative'
@@ -310,7 +289,8 @@ for(i in 7:53){
       if((beta_sq - se_95_sq < 0) & (beta_sq + se_95_sq > 0)) sign_sq <- 'zero'
       
       uni_df <- rbind(uni_df, data.frame(var = var, beta = beta, beta_sq = beta_sq, se_95 = se_95, 
-                                         se_95_sq = se_95_sq, sign = sign, sign_sq = sign_sq, aic = aic)) 
+                                         se_95_sq = se_95_sq, sign = sign, sign_sq = sign_sq, 
+                                         aic = aic, mar_r2 = mar_r2)) 
       
     } else print(str_c(var, ' did not converge')) #save names of models that did not converge
     
@@ -331,6 +311,7 @@ for(i in 7:53){
       beta <- s$tTable[var,"Value"]
       se_95 <- s$tTable[var,"Std.Error"]*1.96
       aic <- s$AIC
+      mar_r2 <- suppressWarnings(performance::r2(m)$R2_marginal)
       
       #find whether signs are zero/positive/negative
       if((beta - se_95 < 0) & (beta + se_95 < 0)) sign <- 'negative'
@@ -338,7 +319,8 @@ for(i in 7:53){
       if((beta - se_95 < 0) & (beta + se_95 > 0)) sign <- 'zero'
       
       uni_df <- rbind(uni_df, data.frame(var = var, beta = beta, beta_sq = NA, se_95 = se_95, 
-                                         se_95_sq = NA, sign = sign, sign_sq = 'NA', aic = aic)) 
+                                         se_95_sq = NA, sign = sign, sign_sq = 'NA', 
+                                         aic = aic, mar_r2 = mar_r2)) 
 
       
     } else print(str_c(var, ' did not converge')) #save names of models that did not converge
@@ -346,10 +328,10 @@ for(i in 7:53){
 }
 
 #clean up
-rm(m, s, beta, beta_sq, se_95, aic, sign, sign_sq, var, i, se_95_sq)
+rm(m, s, beta, beta_sq, se_95, aic, sign, sign_sq, var, i, se_95_sq, mar_r2)
 
 #write to csv file
-write.csv(uni_df, file = 'output/univariate results - 2020-09-25.csv')
+write.csv(uni_df, file = 'output/final/univariate results - 2020-10-09.csv')
 
 ###############################
 ###RUN MULTIVARIATE ANALYSIS###
@@ -491,75 +473,9 @@ for(i in 1:nrow(combos)){
 #clean up
 rm(m, i, j, vars, combos, df, vars_name)
 
-####################
-###RUN VEG COMBOS###
-####################
-
-#create table of all temp combos to evaluate
-#remove bare ground due to high correlation with other RAP variables
-combos <- as.data.frame(expand.grid(ann_forb_rap = 0:1, perenn_forb_rap = 0:1, tree_rap = 0:1))
-
-#remove first row with no variables
-combos <- combos[-1,]
-
-#allocate dataframe for AIC results
-veg_df <- data.frame(var = character(), aic = numeric())
-
-#loop through all combos and run model
-for(i in 1:nrow(combos)){
-  
-  #load row with combination
-  df <- combos[i,]
-  
-  #allocate character vector for variable names
-  vars = rep("NA", ncol(df))
-  
-  #loop through columns to extract variable names
-  for(j in 1:ncol(df)) {
-    if(df[1,j] == 1) {vars[j] <- colnames(df)[j]}
-  }
-  
-  #remove missing names
-  vars <- vars[!(vars %in% "NA")]
-  
-  #save variable names in readable format
-  vars_name <- vars
-  
-  #change names to quadratic if applicable
-  for(j in 1:length(vars)){
-    if(vars[j] %in% quad_var) vars[j] <- str_c('poly(', vars[j], ', 2, raw = TRUE)')
-  }
-  
-  #change names to quadratic readable if applicable
-  for(j in 1:length(vars_name)){
-    if(vars_name[j] %in% quad_var) vars_name[j] <- str_c(vars_name[j], '^2')
-  }
-  
-  #add variable names together to load into model
-  vars <- paste(vars, collapse = " + ")
-  
-  #add variable names together for readability
-  vars_name <- paste(vars_name, collapse = " + ")
-  
-  #run model
-  m <- eval(parse(text = str_c('lme(pirgd ~ lc + ', vars, ', random = ~ 1 | id, 
-                               data = dat3, method = "ML")')))
-    
-  #save AIC
-  veg_df <- rbind(veg_df, data.frame(var = vars_name, aic = AIC(m)))
-    
-}
-
-#clean up
-rm(m, i, j, vars, combos, df, vars_name)
-
-
 #########################
 ###RUN ALL BEST COMBOS###
 #########################
-
-#for this one I just removed sage_homer b/c the best veg model drops that variable
-#but now we've also dropped year 2012...
 
 #test null model and the combinations of the best category models
 
@@ -571,28 +487,10 @@ m_temp <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE),
 m_precip <- lme(pirgd ~ lc + poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
                   poly(snowmelt, 2, raw = TRUE), random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_veg <- lme(pirgd ~ lc + poly(ann_forb_rap, 2, raw = TRUE) + 
-               perenn_forb_rap + tree_rap, random = ~ 1 | id, data = dat3, method = 'ML')
-
 m_temp_precip <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
                        poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
                       poly(snowmelt, 2, raw = TRUE), 
                      random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_temp_veg <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) + poly(chill_jan_apr, 2, raw = TRUE) +
-                    poly(ann_forb_rap, 2, raw = TRUE) + 
-                    perenn_forb_rap + tree_rap, random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_precip_veg <- lme(pirgd ~ lc + poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                      poly(snowmelt, 2, raw = TRUE) + 
-                      poly(ann_forb_rap, 2, raw = TRUE) + 
-                      perenn_forb_rap + tree_rap, random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_temp_precip_veg <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
-                           poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                           poly(snowmelt, 2, raw = TRUE) +
-                           poly(ann_forb_rap, 2, raw = TRUE) + 
-                           perenn_forb_rap + tree_rap, random = ~ 1 | id, data = dat3, method = 'ML')
 
 #create output df
 combo_df <- data.frame(model = character(), aic = numeric())
@@ -601,11 +499,7 @@ combo_df <- data.frame(model = character(), aic = numeric())
 combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
                   data.frame(model = 'm_temp', aic = AIC(m_temp)),
                   data.frame(model = 'm_precip', aic = AIC(m_precip)),
-                  data.frame(model = 'm_veg', aic = AIC(m_veg)),
-                  data.frame(model = 'm_temp_precip', aic = AIC(m_temp_precip)),
-                  data.frame(model = 'm_temp_veg', aic = AIC(m_temp_veg)),
-                  data.frame(model = 'm_precip_veg', aic = AIC(m_precip_veg)),
-                  data.frame(model = 'm_temp_precip_veg', aic = AIC(m_temp_precip_veg)))
+                  data.frame(model = 'm_temp_precip', aic = AIC(m_temp_precip)))
 
 #re-check correlations as well!!!!
 
@@ -613,11 +507,11 @@ combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
 ###BEST MODEL VALIDATION###
 ###########################
 
-#the best model includes variables from all three categories
+#the best model includes variables from the two categories
 #now need to check the model for homogeneity of variance and normality.
 
 #re run model using REML
-m_temp_precip_veg <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
+m_temp_precip <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
                            poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
                            poly(snowmelt, 2, raw = TRUE) +
                            poly(ann_forb_rap, 2, raw = TRUE) + 
