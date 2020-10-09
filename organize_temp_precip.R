@@ -7,12 +7,11 @@ library(raster)
 
 #load WY shapefile and transform to proj of daymet data
 wy <- readOGR('/Volumes/SSD/climate_effects/reference/wyoming.shp')
-wy <- spTransform(wy, "+proj=lcc +lon_0=-100 +lat_0=42.5 +x_0=0 +y_0=0 +lat_1=25 +ellps=WGS84 +lat_2=45")
 
 ###RUN FOR TEMP AND PRECIP AND ALL YEARS
 #set initial variables
-clim <- c("tmax", "prcp")
-years <- 2001:2018
+clim <- c("vp")
+years <- 2000:2019
 
 #run for all variables
 for(vari in clim){
@@ -36,7 +35,7 @@ for(vari in clim){
 vari_yr <- grep(yr, vari_f, value = T)
 
 #check for all 12 tiles
-if(length(vari_yr) != 12){print(paste('Not all tiles present!', vari, 'for', yr, 'not processed!!!'))}
+if(length(vari_yr) != 15){print(paste('Not all tiles present!', vari, 'for', yr, 'not processed!!!'))}
 else{
   print(paste('All tiles present!', vari, 'for', yr, 'processing!!!'))
 
@@ -52,6 +51,7 @@ ras_list$fun <- mean
 mos <- do.call(mosaic, ras_list)
 
 #crop to WY
+wy <- spTransform(wy, crs(mos))
 mos <- crop(mos, wy)
 
 #write to disk

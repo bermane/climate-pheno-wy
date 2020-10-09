@@ -8,11 +8,14 @@ library(tidyverse)
 library(dynatopmodel)
 library(foreach)
 library(spatial.tools)
+library(gdalUtils)
+library(lubridate)
+library(RCurl)
 
 #set wd
 setwd('/Volumes/SSD/climate_effects')
 
-#set rasteroptions to use a bit more memory
+#set raster options to use a bit more memory
 rasterOptions()
 rasterOptions(maxmemory = 1e+10)
 
@@ -149,76 +152,6 @@ writeRaster(lc2, filename = 'landcover/landcover_change_wy_laea_2016.tif', forma
 
 rm(lc, lc2)
 
-#############
-###DAYMET####
-#############
-
-#code to mosaic together daymet tiles and crop to study area
-###RUN FOR TEMP AND PRECIP AND ALL YEARS
-#set initial variables
-#clim <- c("tmax", "prcp", "tmin")
-clim <- c("tmin")
-years <- 2009:2019
-#years <- 2019
-
-#project pirgd_extent so we can used it to crop
-pirgd_extent_dm <- pirgd_extent %>% projectRaster(., crs = CRS("+proj=lcc +lon_0=-100 +lat_0=42.5 +x_0=0 +y_0=0 +lat_1=25 +ellps=WGS84 +lat_2=45"))
-
-#run for all variables
-for(vari in clim){
-  
-  #set vari wd
-  setwd(paste0('/Volumes/SSD/climate_effects/',vari,'/raw'))
-  
-  #load all raw tile file names
-  vari_f <- list.files()
-  
-  #check for any duplicate files
-  if(anyDuplicated(vari_f) != 0){print(paste('Duplicate files!', vari, 'not processed!!!'))
-    } else{print(paste('No duplicate files for', vari, '!!! Processing!!!'))
-    
-    #run for all years  
-    for(yr in years){
-      
-      #test for first year
-      #load annual files
-      vari_yr <- grep(yr, vari_f, value = T)
-      
-      #check for all 12 tiles
-      if(length(vari_yr) != 12){print(paste('Not all tiles present!', vari, 'for', yr, 'not processed!!!'))}
-      else{
-        print(paste('All tiles present!', vari, 'for', yr, 'processing!!!'))
-        
-        #stack rasters in list
-        ras_list <- lapply(1:length(vari_yr), function(x){stack(vari_yr[x])})
-        
-        #set parameters for mosaic function
-        names(ras_list)[1:2] <- c('x', 'y')
-        ras_list$fun <- mean
-        #ras_list$na.rm <- TRUE
-        
-        #mosaic raster stacks
-        mos <- do.call(mosaic, ras_list)
-        
-        #disag, reproject, crop
-        mos <- mos %>% crop(., pirgd_extent_dm) %>% raster::disaggregate(., fact = 4) %>% 
-          projectRaster(., pirgd, method = "bilinear") %>% crop(., pirgd)
-        
-        #create integer values with two decimals to save writing space
-        mos <- mos*100 %>% round
-        
-        #write to disk
-        writeRaster(mos, paste0('/Volumes/SSD/climate_effects/', vari ,'/mosaic/', vari, '_wy_laea', yr, '.tif'), format = "GTiff",
-                    datatype = "INT2S", NAflag = -32767)
-        
-        rm(mos, ras_list, vari_yr)
-        removeTmpFiles(h = 0.000000001)
-      }
-    }
-  }
-  rm(vari_f) 
-}
-
 ##########################
 ###SHRUBLAND COMPONENTS###
 ##########################
@@ -327,6 +260,45 @@ writeRaster(pirgd_m, filename = 'dlc/mean_maxIRGdate_wy_laea_2001_2018.tif', for
 pirgd_var[pirgd_na > 9] <- NA
 writeRaster(pirgd_var, filename = 'dlc/variance_maxIRGdate_wy_laea_2001_2018.tif', format = "GTiff")
 
+#load standard deviation stack
+#sd <- stack('/Volumes/SSD/climate_effects/dlc/SD_IRGMaxDate.grd')
+
+#reproject to eMODIS grid
+#sd <- sd %>% projectRaster(., pirgd)
+#writeRaster(se, filename = 'dlc/sd_maxIRGdate_wy_laea_2000_2019.tif', format = "GTiff")
+#rm(sd)
+
+#load standard deviation stack
+sd <- stack('/Volumes/SSD/climate_effects/dlc/sd_maxIRGdate_wy_laea_2000_2019.tif')
+
+#we only want 2001-2018
+sd <- sd[[2:19]]
+
+#calc mean ss for each pixel
+sd_med <- calc(sd, function(x) {median(x,na.rm = T)})
+
+#calc number of na values in annual layers
+sd_na <- calc(sd, function(x) {sum(is.na(x))})
+
+#only save pirgd mean value if less than half of years are missing
+#we have 19years total
+sd_med[sd_na > 9] <- NA
+
+#write and clean up
+writeRaster(sd_med, filename = 'dlc/median_sd_maxIRGdate_wy_laea_2001_2018.tif', format = "GTiff")
+rm(sd_med, sd_na)
+
+#calc number of years sd > 5
+sd_5 <- sd
+sd_5[sd_5 < 5] <- 0
+sd_5[sd_5 >= 5] <- 1
+
+sd_5_sum <- calc(sd_5, function(x) {sum(x, na.rm = T)})
+
+#write and clean up
+writeRaster(sd_5_sum, filename = 'dlc/sd_sum_5_maxIRGdate_wy_laea_2001_2018.tif', format = "GTiff")
+rm(sd, sd_5, sd_5_sum)
+
 ########################
 ###BURN SEVERITY DATA###
 ########################
@@ -429,10 +401,13 @@ rm(burn_out, burn_f, burn_yr, i)
 #code to organize preprocessed scPDSI from Westwide Drought Tracker
 pdsi_f <- list.files(path = 'drought/raw', pattern = '.nc$', full.names = T)
 
+#sort so in order by month
+pdsi_f <- str_sort(pdsi_f, numeric = T)
+
 #project pirgd_extent so we can used it to crop
 pirgd_ex_drought <- pirgd_extent %>% projectRaster(., crs = crs(raster(pdsi_f[1])))
 
-for(i in 8:length(pdsi_f)){
+for(i in 1:length(pdsi_f)){
   #load raster
   pdsi <- stack(pdsi_f[i])
   
@@ -460,10 +435,10 @@ pdsi_f <- list.files(path = 'drought/bymonth', pattern = '.tif$', full.names = T
   str_sort(numeric = T)
 
 #load in files by band (month) and write out
-for(i in 13:20){
+for(i in 1:20){
   pdsi <- stack(pdsi_f, bands = i)
   writeRaster(pdsi, filename = str_c('drought/pdsi_wy_laea_', 1999 + i, '.tif'),
-              format = 'GTiff')
+              format = 'GTiff', overwrite = T)
   rm(pdsi)
 }
 
@@ -473,5 +448,330 @@ rm(pdsi_f)
 #remove bymonth files
 do.call(file.remove, list(list.files('drought/bymonth', full.names = TRUE)))
 
+###########################
+###ANNUAL HERBACEOUS B&W###
+###########################
+
+#load annherb data
+herb_files <- list.files(path = 'annual_herbaceous/raw', pattern = '.img$', full.names = T)
+herb <- stack(herb_files)
+rm(herb_files)
+
+#project pirgd_extent so we can use it to crop
+pirgd_ex_herb <- pirgd_extent %>% 
+  projectRaster(., crs = crs(herb))
+
+#crop, reproject, crop
+herb <- herb %>% crop(., pirgd_ex_herb)  %>% 
+  projectRaster(., pirgd, method = "bilinear") %>% crop(., pirgd)
+
+herb <- round(herb)
+
+writeRaster(herb, filename = 'annual_herbaceous/ann_herb_wy_laea_2000_2016_bw.tif',
+            format = "GTiff")
+
+#clean up
+rm(herb)
+
+#############
+###DAYMET####
+#############
+
+#code to mosaic together daymet tiles and crop to study area
+###RUN FOR TEMP AND PRECIP AND ALL YEARS
+#set initial variables
+#clim <- c("tmax", "prcp", "tmin")
+clim <- "vp"
+years <- 2000:2019
+
+#project pirgd_extent so we can use it to crop
+pirgd_ex_dm <- pirgd_extent %>% 
+  projectRaster(., crs = crs(raster("vp/mosaic/vp_wy_2000.tif")))
+
+#run for all variables
+for(vari in clim){
+  
+    #run for all years  
+    for(yr in years){
+      
+        #load mosaicked tile
+        mos <- brick(str_c(vari, '/mosaic/vp_wy_', yr, '.tif'))
+        
+        #disag, reproject, crop
+        mos <- mos %>% crop(., pirgd_ex_dm) %>% raster::disaggregate(., fact = 4) %>% 
+          projectRaster(., pirgd, method = "bilinear") %>% crop(., pirgd)
+        
+        #write to disk
+        writeRaster(mos, paste0(vari ,'/', vari, '_wy_laea_', yr, '.tif'), format = "GTiff")
+        
+        #clean up
+        rm(mos)
+        removeTmpFiles(h = 0.000000001)
+      }
+}
 
 
+#########
+###RAP###
+#########
+
+#need to find the extent in WGS84 to subset and download in terminal
+#reproj pirgd_extent to wgs84 and try those coords
+#pirgd_extent_rap <- pirgd_extent %>% 
+#  projectRaster(., crs = CRS('+init=epsg:4326'))
+
+#extent(pirgd_extent_rap)
+
+#set years to process
+years = 2001:2019
+
+#loop through years to process
+for(yr in years){
+  
+  #import layer
+  rap <- stack(str_c('/Volumes/SSD/climate_effects/rap/raw/rap_', yr, '.tif'))
+  
+  #only keep layers we want
+  rap <- rap[[1:6]]
+  
+  #aggregate, reproject, crop
+  rap <- rap %>% raster::aggregate(., fact = 8) %>% 
+    projectRaster(., pirgd, method = "bilinear") %>% crop(., pirgd) %>% round
+  
+  #write to disk
+  writeRaster(rap, str_c('rap/rap_wy_laea_', yr, '.tif'), format = "GTiff")
+  
+  #clean up
+  rm(rap, pirgd_extent_rap)
+  removeTmpFiles(h = 0.000000001)
+}
+
+##################################
+###FOREST LOSS AND COVER HANSEN###
+##################################
+
+#load forest loss rasters
+loss1 <- raster('/Volumes/SSD/climate_effects/forest/Hansen_GFC-2018-v1.6_lossyear_50N_120W.tif')
+loss2 <- raster('/Volumes/SSD/climate_effects/forest/Hansen_GFC-2018-v1.6_lossyear_50N_110W.tif')
+
+#merge together
+loss <- merge(loss1, loss2)
+
+#project pirgd_extent so we can use it to crop
+pirgd_ex_loss <- pirgd_extent %>% 
+  projectRaster(., crs = crs(loss))
+
+#crop, reproject, crop
+loss <- loss %>% crop(., pirgd_ex_loss)  %>% 
+  raster::aggregate(., fact = 8, fun = modal) %>% 
+  projectRaster(., pirgd, method = "ngb") %>% 
+  crop(., pirgd)
+
+writeRaster(loss, filename = 'forest/tree_loss_year_wy_laea_2000_2018.tif',
+            format = "GTiff")
+
+#clean up
+rm(loss)
+
+#load tree cover rasters
+tc1 <- raster('forest/Hansen_GFC-2018-v1.6_treecover2000_50N_120W.tif')
+tc2 <- raster('forest/Hansen_GFC-2018-v1.6_treecover2000_50N_110W.tif')
+
+#merge together
+tc <- merge(tc1, tc2)
+
+#crop, reproject, crop
+tc <- tc %>% crop(., pirgd_ex_loss)  %>% 
+  raster::aggregate(., fact = 8) %>% 
+  projectRaster(., pirgd, method = "bilinear") %>% 
+  crop(., pirgd)
+
+writeRaster(tc, filename = 'forest/tree_cover_year_wy_laea_2000.tif',
+            format = "GTiff")
+
+#clean up
+rm(tc, pirgd_ex_loss)
+
+############
+###SNODAS###
+############
+
+#######################
+###DOWNLOAD RAW DATA###
+#######################
+
+#set download directory
+dir <- '/Volumes/SSD/goat_surveys/snodas/raw'
+
+for(yr in 2001:2005){
+  url<- str_c("ftp://sidads.colorado.edu/DATASETS/NOAA/G02158/masked/", yr, "/")
+  mon <- getURL(url, ftp.use.epsv = FALSE, dirlistonly = TRUE) #reading filenames from ftp-server
+  mon <- strsplit(mon, "\n")
+  mon = unlist(mon)
+  mon <- mon %>% str_subset(pattern = "_")
+  
+  for(m in mon){
+    url2 <- str_c("ftp://sidads.colorado.edu/DATASETS/NOAA/G02158/masked/", yr, "/", m, "/")
+    filenames <- getURL(url2, ftp.use.epsv = FALSE, dirlistonly = TRUE) #reading filenames from ftp-server
+    filenames <- strsplit(filenames, "\n")
+    filenames = unlist(filenames)
+    filenames <- filenames %>% str_subset(pattern = ".tar")
+    
+    for (filename in filenames) {
+      download.file(paste(url2, filename, sep = ""), paste(dir, "/", filename,
+                                                           sep = ""))
+    }
+    rm(url2, filenames)
+  }
+  rm(url, mon)
+}
+
+#######################
+###ORGANIZE RAW DATA###
+#######################
+
+#denote where raw data is
+raw <- '/Volumes/SSD/goat_surveys/snodas/raw'
+
+#create temp dir and output files dir
+dir.create('snodas/temp')
+dir.create('snodas/extracted')
+
+#get files in dir
+files <- list.files(raw, '.tar', full.names = T)
+
+#find leap year files
+leap <- str_which(files, '0229')
+
+#remove leap year files
+file.remove(files[leap])
+
+#get files in dir
+files <- list.files(raw, '.tar', full.names = T)
+
+#check to see if any files are missing
+#extract dates from file names and parse as Date object
+check <- str_extract(files, '[:digit:]{8}')
+check <- ymd(check)
+
+#create sequence along timeseries from 2001 to end of 2019
+dates <- seq(ymd("20010101"), ymd(20191231), by = 1)
+
+#print which are missing
+#seems these files just don't exist so when I stack the data i'll
+#just leave whole bands as NA
+dates[!(dates %in% check)]
+
+#we only want oct to april so only extract those months
+months <- c(1, 2, 3, 4, 10, 11, 12)
+files <- files[month(check) %in% months]
+
+#set to run for three variables
+vari <- matrix(c('swe', 'snowdepth', 'snowprcp',
+                 'us_ssmv11034', 'us_ssmv11036', 'us_ssmv01025SlL01'), ncol = 2)
+
+#run loop to extract files
+for(file in files){
+  #untar main file
+  untar(file, exdir = str_c(getwd(), raw, '/temp'))
+  
+  #loop through, unzip, crop, and write .tif for 3 variables
+  for(i in 1:nrow(vari)){
+    
+    #find file for variable
+    f <- list.files(str_c(getwd(), raw, '/temp'), pattern = glob2rx(str_c(vari[i,2], '*.dat.gz')), full.names = T)
+    f_out <- str_c(vari[i,1], '_', str_extract(file, '[:digit:]{8}'), '.dat')
+    gunzip(f[1], destname = str_c(getwd(), raw, '/temp/', f_out))
+    
+    #create hdr
+    #different hdr for before and after oct 1 2013
+    if(ymd(str_extract(file, '[:digit:]{8}')) < "2013-10-01"){
+      hdr <- c('nrows 3351',
+               'ncols 6935',
+               'nbands 1',
+               'nbits 16',
+               'pixeltype signedint',
+               'byteorder M',
+               'layout dat',
+               'ulxmap -124.729583333331703',
+               'ulymap 52.871249516804028',
+               'xdim 0.00833333333',
+               'ydim 0.00833333333')
+    }else{
+      hdr <- c('nrows 3351',
+               'ncols 6935',
+               'nbands 1',
+               'nbits 16',
+               'pixeltype signedint',
+               'byteorder M',
+               'layout dat',
+               'ulxmap -124.733333333333',
+               'ulymap 52.8749999999999',
+               'xdim 0.00833333333',
+               'ydim 0.00833333333')
+    }
+    
+    #write hdr to disk
+    writeLines(hdr, str_c(getwd(), raw, '/temp/', str_replace(f_out, '.dat', '.hdr')))
+    
+    #load in dat file
+    sno <- raster(str_c(getwd(), raw, '/temp/', f_out))
+    
+    #set crs
+    crs(sno) <- CRS("+init=epsg:4326")
+    
+    #reproj gnp outline
+    gnp_sno <- spTransform(gnp, crs(sno))
+    
+    #crop sno and write to extracted folder
+    sno <- crop(sno, gnp_sno, filename = str_c(getwd(), raw, '/extracted/', str_replace(f_out, '.dat', '.tif')),
+                format = 'GTiff', datatype = 'INT2S', NAflag = -9999)
+    
+    #clean up
+    rm(f, f_out, hdr, gnp_sno, sno)
+  }
+  #clear temp folder
+  invisible(do.call(file.remove, list(list.files(str_c(getwd(), raw, '/temp'), full.names = TRUE))))
+}
+
+#######################################
+###HOMER ANNUAL SHRUBLAND COMPONENTS###
+#######################################
+
+#load test layers
+test <- raster('homer_annual/raw/nlcd_herb_2001_mos_v1_gAhIbnWn4xjidvl8NSjM.tiff')
+test2 <- raster('homer_annual/raw/nlcd_herb_2001_mos_v1_s9BgbK9qx4Th9eAFLxUc.tiff')
+
+#project pirgd_extent so we can used it to crop
+pirgd_ex_homer <- pirgd_extent %>% projectRaster(., crs = crs(test))
+
+#loop through sage, herb and shrub datasets
+for(var in c('sage', 'herb', 'shrub')){
+  
+  #load all sage files scene 1
+  s1 <- Sys.glob(str_c('homer_annual/raw/nlcd_', var, '*gAhIbnWn4xjidvl8NSjM.tiff'))
+  s1 <- stack(s1)
+  
+  #load all sage files scene 2
+  s2 <- Sys.glob(str_c('homer_annual/raw/nlcd_', var, '*s9BgbK9qx4Th9eAFLxUc.tiff'))
+  s2 <- stack(s2)
+  
+  #mosaic datasets, initial crop, aggregate
+  scene <- merge(s1, s2) %>% crop(., pirgd_ex_homer) %>% aggregate(., fact = 8, fun = modal)
+  
+  #rm
+  rm(s1, s2)
+  
+  #convert na data to NA
+  scene[scene == 101] <- NA
+  scene[scene == 102] <- NA
+  
+  #reproject, crop
+  scene <- scene %>% projectRaster(., pirgd, method = "bilinear") %>% round %>% crop(., pirgd)
+  
+  #write to disk
+  writeRaster(scene, filename = str_c('homer_annual/', var, '_wy_laea_2001_2018_no_2012.tif'), format = "GTiff")
+  rm(scene)
+  
+  removeTmpFiles(h = 0.00000001)
+}
