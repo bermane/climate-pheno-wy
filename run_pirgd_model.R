@@ -26,7 +26,7 @@ setwd('/Volumes/SSD/climate_effects')
 source("reference/HighstatLibV10.R")
 
 #load workspace
-load('/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/pirgd_dat_2020_09_17.RData')
+load('/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/pirgd_dat_2020_10_18.RData')
 
 ##################################
 ###REMOVE MISSING/UNWANTED DATA###
@@ -91,12 +91,13 @@ plot(x = dat2$dem, y = dat2$pirgd)
 #id col and lc as factors
 dat2$id <- as.factor(dat2$id)
 dat2$lc <- as.factor(dat2$lc)
+levels(dat2$lc) <- c('shrub', 'herb', 'evergreen')
 
 #loop through all covariates in table
 #check to make sure correct starting column -- start with dem!!
 colnames(dat2)[7]
 ncol(dat2)
-for(col_id in 7:36){
+for(col_id in 7:35){
   
   #set varible name
   vari <- colnames(dat2)[col_id]
@@ -138,7 +139,7 @@ quad_df <- data.frame(var = character(), quad_coef = numeric(), quad_95 = numeri
 #check to make sure correct starting column -- start with dem!!
 colnames(dat2)[7]
 ncol(dat2)
-for(col_id in 7:36){
+for(col_id in 7:35){
   
   #set variable name
   vari <- colnames(dat2)[col_id]
@@ -165,15 +166,16 @@ for(col_id in 7:36){
   
 }
 
+#FOR NOW ONLY USE AIC TO DECIDE WHICH VARIABLES TO CARRY FORWARD AS QUADRATICS
 #set low and high confidence intervals to test overlap with zero
-quad_df$quad_low <- quad_df$quad_coef - quad_df$quad_95
-quad_df$quad_hi <- quad_df$quad_coef + quad_df$quad_95
+#quad_df$quad_low <- quad_df$quad_coef - quad_df$quad_95
+#quad_df$quad_hi <- quad_df$quad_coef + quad_df$quad_95
 
 #subset dataframe to variables where quad does not overlap zero
-quad_df2 <- quad_df[!(quad_df$quad_low < 0 & quad_df$quad_hi > 0),]
+#quad_df2 <- quad_df[!(quad_df$quad_low < 0 & quad_df$quad_hi > 0),]
 
 #subset dataframe to variables where quad AIC is lower than lin AIC
-quad_df2 <- quad_df2[quad_df2$quad_aic < quad_df2$lin_aic,]
+quad_df2 <- quad_df[quad_df$quad_aic < quad_df$lin_aic,]
 
 #move forward with quadratic terms from these variables!
 quad_var <- quad_df2$var
@@ -191,10 +193,10 @@ dat3 <- dat2
 #which columns to rescale? Want everything after dem
 colnames(dat3)[7]
 ncol(dat3)
-#7 to 36
+#7 to 35
 
 #rescale variables between 0 and 1
-for(i in 7:36){
+for(i in 7:35){
   dat3[,i] <- scale(dat3[,i])
 }
 
@@ -215,12 +217,15 @@ AIC(m2)
 #check into correlation between all variables
 #compute correlation matrix
 #make sure to check including all columns!!!
-cor_m <- cor(dat3[,7:36])
+cor_m <- cor(dat3[,7:35])
 cor_m <- round(cor_m, 2)
 
 #create output table of overall correlations that are significant
 #allocate df
 cor_df <- data.frame(var1 = character(), var2 = character(), cor = numeric())
+
+#write to csv file full correlation results
+write.csv(cor_df, file = 'output/final/full correlation results - 2020-10-18.csv')
 
 #loop through
 for(i in 1:nrow(cor_m)){
@@ -233,8 +238,8 @@ for(i in 1:nrow(cor_m)){
   }
 }
 
-#write to csv file
-write.csv(cor_df, file = 'output/final/correlation results - 2020-10-09.csv')
+#write to csv file significant correlation results
+write.csv(cor_df, file = 'output/final/significant correlation results - 2020-10-18.csv')
 
 ########################################################
 ###TEST VARIABLES FOR NON-ZERO and NON-SIGN SWITCHING###
@@ -243,14 +248,14 @@ write.csv(cor_df, file = 'output/final/correlation results - 2020-10-09.csv')
 #which columns do we want to test? everything after landcover
 colnames(dat3)[7]
 ncol(dat3)
-#7 to 36
+#7 to 35
 
 #allocate dataframe to save coefficients
 uni_df <- data.frame(var = character(), beta = numeric(), beta_sq = numeric(), se_95 = numeric(), se_95_sq = numeric(),
                      sign = character(), sign_sq = character(), aic = numeric(), mar_r2 = numeric())
 
 #loop through variables
-for(i in 7:36){
+for(i in 7:35){
   
   #get column to test
   var <- colnames(dat3)[i]
@@ -331,7 +336,7 @@ for(i in 7:36){
 rm(m, s, beta, beta_sq, se_95, aic, sign, sign_sq, var, i, se_95_sq, mar_r2)
 
 #write to csv file
-write.csv(uni_df, file = 'output/final/univariate results - 2020-10-09.csv')
+write.csv(uni_df, file = 'output/final/univariate results - 2020-10-18.csv')
 
 ###############################
 ###RUN MULTIVARIATE ANALYSIS###
@@ -347,10 +352,10 @@ write.csv(uni_df, file = 'output/final/univariate results - 2020-10-09.csv')
 ############################
 
 #create table of all temp combos to evaluate
-combos <- as.data.frame(expand.grid(gdd_elev = 0:1, chill_jan_apr = 0:1, dem = 0:1))
+combos <- as.data.frame(expand.grid(gdd_jan_apr = 0:1, chill_jan_may = 0:1))
 
 #remove first row with no variables and combos with dem except dem + gdd_elev
-combos <- combos[-c(1, 7, 8),]
+combos <- combos[-1,]
 
 #allocate dataframe for AIC results
 temp_df <- data.frame(var = character(), aic = numeric())
@@ -408,9 +413,8 @@ rm(m, i, j, vars, combos, df, vars_name)
 #######################
 
 #create table of all precip combos to evaluate
-combos <- as.data.frame(expand.grid(rain_elev = 0:1, pdsi_mar_apr_min = 0:1, twi = 0:1,
-                                    vpd_tmax_mean_jan_apr = 0:1, snow_oct_apr = 0:1, tot_prcp_oct_apr = 0:1,
-                                    snowmelt = 0:1))
+combos <- as.data.frame(expand.grid(twi = 0:1, pdsi_mar_apr_min = 0:1, rain_elev = 0:1,
+                                    snow_oct_apr = 0:1))
 
 #remove first row with no variables
 combos <- combos[-1,]
@@ -481,15 +485,15 @@ rm(m, i, j, vars, combos, df, vars_name)
 
 m_null <- lme(pirgd ~ lc, random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_temp <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE), 
+m_temp <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE), 
               random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_precip <- lme(pirgd ~ lc + poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                  poly(snowmelt, 2, raw = TRUE), random = ~ 1 | id, data = dat3, method = 'ML')
+m_precip <- lme(pirgd ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                  snow_oct_apr, random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_temp_precip <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
-                       poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                      poly(snowmelt, 2, raw = TRUE), 
+m_temp_precip <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                      snow_oct_apr, 
                      random = ~ 1 | id, data = dat3, method = 'ML')
 
 #create output df
@@ -504,6 +508,39 @@ combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
 #re-check correlations as well!!!!
 
 ###########################
+###TEST FOR INTERACTIONS###
+###########################
+
+m_base <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                snow_oct_apr, 
+              random = ~ 1 | id, data = dat3, method = 'ML')
+
+m_intaxn1 <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                   snow_oct_apr + 
+                   poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE), 
+                 random = ~ 1 | id, data = dat3, method = 'ML')
+
+m_intaxn2 <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                   poly(snow_oct_apr, 2, raw = TRUE) + 
+                   poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
+                 random = ~ 1 | id, data = dat3, method = 'ML')
+
+m_all <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+               poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+               snow_oct_apr +
+               poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+               poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
+             random = ~ 1 | id, data = dat3, method = 'ML')
+
+AIC(m_base)
+AIC(m_intaxn1)
+AIC(m_intaxn2)
+AIC(m_all)
+
+###########################
 ###BEST MODEL VALIDATION###
 ###########################
 
@@ -511,18 +548,19 @@ combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
 #now need to check the model for homogeneity of variance and normality.
 
 #re run model using REML
-m_temp_precip <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
-                           poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                           poly(snowmelt, 2, raw = TRUE) +
-                           poly(ann_forb_rap, 2, raw = TRUE) + 
-                           perenn_forb_rap + tree_rap, random = ~ 1 | id, data = dat3)
+m_final <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                       snow_oct_apr +
+                       poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
+                     random = ~ 1 | id, data = dat3)
 
 #plot residuals of best model
-e2 <- resid(m_temp_precip_veg, type = 'normalized')
-f2 <- fitted(m_temp_precip_veg)
+e2 <- resid(m_final, type = 'normalized')
+f2 <- fitted(m_final)
 
 #set up output plot
-jpeg('output/model_validation/m_temp_precip_veg_resid_dist.jpeg', width = 900, height = 600)
+jpeg('output/final/model_validation/m_temp_precip_veg_resid_dist.jpeg', width = 900, height = 600)
 
 #test for normality
 hist(e2, xlab = 'Residuals', main = 'Normal Distribution?', breaks = 100)
@@ -531,7 +569,7 @@ hist(e2, xlab = 'Residuals', main = 'Normal Distribution?', breaks = 100)
 dev.off()
 
 #set up output plot
-jpeg('output/model_validation/m_temp_precip_veg_resid_vs_fitted.jpeg', width = 900, height = 600)
+jpeg('output/final/model_validation/m_final_resid_vs_fitted.jpeg', width = 900, height = 600)
 
 #test for equal variance
 plot(x = f2, y = e2, xlab = 'Fitted values', ylab = 'Residuals', main = 'Homogenity of Variance?')
@@ -542,7 +580,7 @@ dev.off()
 #plot residuals against each explanatory variable to check for patterns
 
 #set up output plot
-jpeg('output/model_validation/m_temp_precip_veg_resid_lc.jpeg', width = 900, height = 600)
+jpeg('output/final/model_validation/m_final_resid_lc.jpeg', width = 900, height = 600)
 
 #box plot of landcover
 boxplot(e2 ~ lc, data = dat3, main = 'Landcover', ylab = 'Residuals', xlab = 'Landcover')
@@ -552,15 +590,14 @@ dev.off()
 
 #plot all other explanatory variables against residuals
 #create list of variables
-vars <- c('gdd_elev', 'rain_elev', 'pdsi_mar_apr_min',
-          'snowmelt', 'ann_forb_rap',
-          'perenn_forb_rap', 'tree_rap')
+vars <- c('chill_jan_may', 'pdsi_mar_apr_min', 'rain_elev',
+          'snow_oct_apr')
 
 #loop through
 for(var in vars){
   
   #set up output plot
-  jpeg(str_c('output/model_validation/m_temp_precip_veg_resid_', var, '.jpeg'), width = 900, height = 600)
+  jpeg(str_c('output/final/model_validation/m_final_resid_', var, '.jpeg'), width = 900, height = 600)
   
   #plot variable against residuals
   plot(x = dat3[, var], y = e2, ylab = 'Residuals', xlab = var, main = var)
@@ -591,18 +628,18 @@ anova(m_resid)
 #very significant means we don't have equal variance...
 
 #compute r^2 as a measure of goodness of fit. use lme4 package fit to run correct functions
-m_temp_precip_veg_lme4 <- lmer(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
-                           poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                           poly(snowmelt, 2, raw = TRUE) +
-                           poly(ann_forb_rap, 2, raw = TRUE) + 
-                           perenn_forb_rap + tree_rap + (1 | id), dat3)
+m_final_lme4 <- lmer(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                       poly(snow_oct_apr, 2, raw = TRUE) +
+                       poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE):lc + (1 | id), dat3)
 
 #compute model checks
-performance::check_model(m_temp_precip_veg_lme4)
-performance::model_performance(m_temp_precip_veg_lme4)
+performance::check_model(m_final_lme4)
+performance::model_performance(m_final_lme4)
 
 #calculate VIF
-vif <- vif(m_temp_precip_veg)
+vif <- vif(m_final)
 
 #square the GVIF DF value to ensure < 5
 vif <- vif[,3]^2
@@ -612,7 +649,7 @@ vif <- data.frame(vif)
 ###STORE MODEL PARAMETERS###
 ############################
 
-s <- summary(m_temp_precip_veg)
+s <- summary(m_final)
 fitted <- as.data.frame(s$tTable)
 
 #################
@@ -620,7 +657,7 @@ fitted <- as.data.frame(s$tTable)
 #################
 
 #set up output plot
-jpeg('output/model_validation/predicted_vs_observed_pirgd.jpeg', width = 600, height = 600)
+jpeg('output/final/model_validation/predicted_vs_observed_pirgd.jpeg', width = 600, height = 600)
 
 #actual vs. predicted pirgd values
 plot(x = dat3$pirgd, y = f2, xlab = 'Observed', ylab = 'Predicted', main = 'Predicted vs. Observed PIRGd',
@@ -631,14 +668,15 @@ abline(1,1, col = 'blue')
 dev.off()
 
 #re-run model with original values to see correct effect size
-m_original <- lme(pirgd ~ lc + poly(gdd_elev, 2, raw = TRUE) +
-                           poly(rain_elev, 2, raw = TRUE) + poly(pdsi_mar_apr_min, 2, raw = TRUE) + 
-                           poly(snowmelt, 2, raw = TRUE) +
-                           poly(ann_forb_rap, 2, raw = TRUE) + 
-                           perenn_forb_rap + tree_rap, random = ~ 1 | id, data = dat2)
+m_original <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
+                    poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+                    snow_oct_apr +
+                    poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+                    poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
+                  random = ~ 1 | id, data = dat2)
 
 #set up output plot
-jpeg('output/model_validation/variable_effect_size.jpeg', width = 1600, height = 902)
+jpeg('output/final/model_validation/variable_effect_size.jpeg', width = 1600, height = 902)
 
 #plot all effects using correct effect size
 plot(effects::predictorEffects(m_original))
@@ -646,8 +684,21 @@ plot(effects::predictorEffects(m_original))
 #dev.off
 dev.off()
 
+#plot each effect separately!
+#create list of effects variables
+vars_effect <- c('lc', 'chill_jan_may', 'pdsi_mar_apr_min', 'rain_elev',
+                 'snow_oct_apr')
+
+#plot each effect using correct effect size
+#manual saving is working better
+#code for variables
+plot(effects::predictorEffect(vars_effect[1], m_original),
+     axes = list(y = list(lim = c(60, 300), lab = 'pirgd (doy)'),
+                 x = list(lc = list(lab = 'landcover'))),
+     main = 'Landcover Predictor Effect')
+
 #set up output plot
-jpeg('output/model_validation/pirgd_vs_landcover.jpeg', width = 900, height = 600)
+jpeg('output/final/model_validation/pirgd_vs_landcover.jpeg', width = 900, height = 600)
 
 #plot distribution of LC classes vs. pirgd to make sure the LC effect makes sense
 boxplot(pirgd ~lc, data = dat3, main = 'PIRGd vs Landcover', ylab = 'PIRGd', xlab = 'Landcover (Shrub, Herb, Evergreen)')
@@ -676,7 +727,7 @@ lc[lc == 5] <- NA
 lc[lc == 4] <- 3
 
 #set up output plot
-jpeg('output/model_validation/resid_size_sampling_grid.jpeg', width = 715, height = 495)
+jpeg('output/final/model_validation/resid_size_sampling_grid.jpeg', width = 715, height = 495)
 
 #plot grid points using residual size
 plot(lc, legend=FALSE, col=c("coral3", "papayawhip", "forestgreen"), xaxt='n', yaxt='n',
@@ -711,7 +762,7 @@ levels(dat_pdsi$elev) <- c('Less than 1645 m', '1645 - 2298 m', 'Above 2298 m')
 levels(dat_pdsi$lc) <- c('Shrub', 'Herb', 'Evergreen')
 
 #set up output plot
-jpeg('output/model_validation/pdsi_pirgd_lc.jpeg', width = 715, height = 495)
+jpeg('output/final/model_validation/pdsi_pirgd_lc.jpeg', width = 715, height = 495)
 
 #why does pdsi have a strong quadratic curve?
 #check to see if pdsi varies at different elevation, or by landcovers...
@@ -722,7 +773,7 @@ ggplot(dat_pdsi, aes(x = pdsi, y = pirgd, color = lc)) + geom_point(size = .2) +
 dev.off()
 
 #set up output plot
-jpeg('output/model_validation/pdsi_pirgd_elev.jpeg', width = 715, height = 495)
+jpeg('output/final/model_validation/pdsi_pirgd_elev.jpeg', width = 715, height = 495)
 
 #plot!
 ggplot(dat_pdsi, aes(x = pdsi, y = pirgd, color = elev)) + geom_point(size = .2) +
@@ -730,6 +781,64 @@ ggplot(dat_pdsi, aes(x = pdsi, y = pirgd, color = elev)) + geom_point(size = .2)
 
 #dev.off
 dev.off()
+
+#plot dot and whisker of coefficient results
+#fit data frame of fitted values
+m_df <- data.frame(term = rownames(fitted), estimate = fitted$Value, std.error = fitted$Std.Error)
+
+#change names of terms
+#create index first
+index <- c('(Intercept)', 'herb', 'evergreen', 'chill_jan_may', 'chill_jan_may^2', 'rain_elev', 'rain_elev^2',
+           'pdsi_mar_apr_min', 'pdsi_mar_apr_min^2', 'snow_oct_apr', 'chill_jan_may:rain_elev', 'chill_jan_may:rain_elev^2',
+           'chill_jan_may^2:rain_elev', 'chill_jan_may^2:rain_elev^2', 'herb:pdsi_mar_apr_min',
+           'evergreen:pdsi_mar_apr_min', 'herb:pdsi_mar_apr_min^2',
+           'evergreen:pdsi_mar_apr_min^2')
+
+names(index) <- c('(Intercept)', 'lc2', 'lc3', 'poly(chill_jan_may, 2, raw = TRUE)1', 'poly(chill_jan_may, 2, raw = TRUE)2',
+                  'poly(rain_elev, 2, raw = TRUE)1', 'poly(rain_elev, 2, raw = TRUE)2',
+                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)1', 'poly(pdsi_mar_apr_min, 2, raw = TRUE)2',
+                  'snow_oct_apr',
+                  'poly(chill_jan_may, 2, raw = TRUE)1:poly(rain_elev, 2, raw = TRUE)1',
+                  'poly(chill_jan_may, 2, raw = TRUE)1:poly(rain_elev, 2, raw = TRUE)2',
+                  'poly(chill_jan_may, 2, raw = TRUE)2:poly(rain_elev, 2, raw = TRUE)1',
+                  'poly(chill_jan_may, 2, raw = TRUE)2:poly(rain_elev, 2, raw = TRUE)2',
+                  'lc2:poly(pdsi_mar_apr_min, 2, raw = TRUE)1',
+                  'lc3:poly(pdsi_mar_apr_min, 2, raw = TRUE)1',
+                  'lc2:poly(pdsi_mar_apr_min, 2, raw = TRUE)2',
+                  'lc3:poly(pdsi_mar_apr_min, 2, raw = TRUE)2')
+
+#replace values of term variable
+m_df$term <- dplyr::recode(m_df$term, !!!index)
+
+#also want to create categories
+m_df$category <- NA
+m_df$category[m_df$term %in% c('(Intercept)', 'herb', 'evergreen')] <- 'Landcover'
+m_df$category[m_df$term %in% c('chill_jan_may', 'chill_jan_may^2')] <- 'Temperature'
+m_df$category[m_df$term %in% c('rain_elev', 'rain_elev^2', 'pdsi_mar_apr_min',
+                               'pdsi_mar_apr_min^2', 'snow_oct_apr')] <- 'Moisture'
+m_df$category[is.na(m_df$category)] <- 'Interaction'
+
+#order category variable
+m_df$category <- ordered(m_df$category, levels = c('Landcover', 'Temperature', 'Moisture', 'Vegetation', 'Interaction'))
+
+#sort big to small effect
+m_df <- m_df[order(-abs(m_df$estimate)),]
+
+dwplot(m_df,
+       vline = geom_vline(xintercept = 0, colour = 'grey60', linetype = 2),
+       dot_args = list(aes(color = category), size = 3),
+       whisker_args = list(aes(color = category), size = 1)) + 
+  theme_bw() + xlab('Coefficient Estimate') + ylab('') +
+  ggtitle('Effect Size of PIRGd Drivers') + 
+  scale_colour_manual(name = 'Category', values = c('#EE6677', '#CCBB44', '#4477AA', '#228833', '#AA3377')) +
+  theme(legend.position = (c(0.72, 0.03)),
+        legend.justification = c(0, 0),
+        legend.background = element_rect(colour="grey80"),
+        plot.title = element_text(size = 15), axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 10),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 10))
 
 
 #code to rescale scaled values back to normal
