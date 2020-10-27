@@ -110,7 +110,7 @@ for(col_id in 7:35){
   e2 <- resid(m, type = 'normalized')
   f2 <- fitted(m)
   
-  #set up utput plot
+  #set up output plot
   jpeg(str_c('output/final/norm_equal_var_test_plots/' ,vari, '.jpeg'), width = 900, height = 600)
   
   #plot graphs to test for normality and equal variance
@@ -173,6 +173,10 @@ for(col_id in 7:35){
 
 #subset dataframe to variables where quad does not overlap zero
 #quad_df2 <- quad_df[!(quad_df$quad_low < 0 & quad_df$quad_hi > 0),]
+
+#get null model AIC to test against quadratic and linear AIC
+AIC(lme(pirgd ~ lc, random = ~ 1 | id, 
+        data = dat2, method = 'ML'))
 
 #subset dataframe to variables where quad AIC is lower than lin AIC
 quad_df2 <- quad_df[quad_df$quad_aic < quad_df$lin_aic,]
@@ -352,6 +356,7 @@ write.csv(uni_df, file = 'output/final/univariate results - 2020-10-18.csv')
 ############################
 
 #create table of all temp combos to evaluate
+#at this point only moving forward with gdd_jan_apr so actually not needed for this category
 combos <- as.data.frame(expand.grid(gdd_jan_apr = 0:1, chill_jan_may = 0:1))
 
 #remove first row with no variables and combos with dem except dem + gdd_elev
@@ -413,7 +418,7 @@ rm(m, i, j, vars, combos, df, vars_name)
 #######################
 
 #create table of all precip combos to evaluate
-combos <- as.data.frame(expand.grid(twi = 0:1, pdsi_mar_apr_min = 0:1, rain_elev = 0:1,
+combos <- as.data.frame(expand.grid(twi = 0:1, pdsi_mar_apr_min = 0:1, rain_mar_may = 0:1,
                                     snow_oct_apr = 0:1))
 
 #remove first row with no variables
@@ -485,14 +490,14 @@ rm(m, i, j, vars, combos, df, vars_name)
 
 m_null <- lme(pirgd ~ lc, random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_temp <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE), 
+m_temp <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE), 
               random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_precip <- lme(pirgd ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_precip <- lme(pirgd ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                   snow_oct_apr, random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_temp_precip <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_temp_precip <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                       snow_oct_apr, 
                      random = ~ 1 | id, data = dat3, method = 'ML')
 
@@ -511,27 +516,27 @@ combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
 ###TEST FOR INTERACTIONS###
 ###########################
 
-m_base <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_base <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                 snow_oct_apr, 
               random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_intaxn1 <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_intaxn1 <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                    snow_oct_apr + 
-                   poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE), 
+                   poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
                  random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_intaxn2 <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_intaxn2 <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                    poly(snow_oct_apr, 2, raw = TRUE) + 
                    poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
                  random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_all <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-               poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_all <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+               poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                snow_oct_apr +
-               poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+               poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
                poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
              random = ~ 1 | id, data = dat3, method = 'ML')
 
@@ -548,10 +553,10 @@ AIC(m_all)
 #now need to check the model for homogeneity of variance and normality.
 
 #re run model using REML
-m_final <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_final <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                        snow_oct_apr +
-                       poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+                       poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
                        poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
                      random = ~ 1 | id, data = dat3)
 
@@ -590,7 +595,7 @@ dev.off()
 
 #plot all other explanatory variables against residuals
 #create list of variables
-vars <- c('chill_jan_may', 'pdsi_mar_apr_min', 'rain_elev',
+vars <- c('gdd_jan_apr', 'pdsi_mar_apr_min', 'rain_mar_may',
           'snow_oct_apr')
 
 #loop through
@@ -628,10 +633,10 @@ anova(m_resid)
 #very significant means we don't have equal variance...
 
 #compute r^2 as a measure of goodness of fit. use lme4 package fit to run correct functions
-m_final_lme4 <- lmer(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
-                       poly(snow_oct_apr, 2, raw = TRUE) +
-                       poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+m_final_lme4 <- lmer(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                       snow_oct_apr +
+                       poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
                        poly(pdsi_mar_apr_min, 2, raw = TRUE):lc + (1 | id), dat3)
 
 #compute model checks
@@ -668,10 +673,10 @@ abline(1,1, col = 'blue')
 dev.off()
 
 #re-run model with original values to see correct effect size
-m_original <- lme(pirgd ~ lc + poly(chill_jan_may, 2, raw = TRUE) +
-                    poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_elev, 2, raw = TRUE) + 
+m_original <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
+                    poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                     snow_oct_apr +
-                    poly(chill_jan_may, 2, raw = TRUE):poly(rain_elev, 2, raw = TRUE) +
+                    poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
                     poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
                   random = ~ 1 | id, data = dat2)
 
@@ -686,16 +691,16 @@ dev.off()
 
 #plot each effect separately!
 #create list of effects variables
-vars_effect <- c('lc', 'chill_jan_may', 'pdsi_mar_apr_min', 'rain_elev',
+vars_effect <- c('lc', 'gdd_jan_apr', 'pdsi_mar_apr_min', 'rain_mar_may',
                  'snow_oct_apr')
 
 #plot each effect using correct effect size
 #manual saving is working better
 #code for variables
-plot(effects::predictorEffect(vars_effect[1], m_original),
+plot(effects::predictorEffect(vars_effect[5], m_original),
      axes = list(y = list(lim = c(60, 300), lab = 'pirgd (doy)'),
-                 x = list(lc = list(lab = 'landcover'))),
-     main = 'Landcover Predictor Effect')
+                 x = list(snow_oct_apr = list(lab = 'Snow Oct-Apr'))),
+     main = 'Snow Oct-Apr Predictor Effect')
 
 #set up output plot
 jpeg('output/final/model_validation/pirgd_vs_landcover.jpeg', width = 900, height = 600)
@@ -788,20 +793,20 @@ m_df <- data.frame(term = rownames(fitted), estimate = fitted$Value, std.error =
 
 #change names of terms
 #create index first
-index <- c('(Intercept)', 'herb', 'evergreen', 'chill_jan_may', 'chill_jan_may^2', 'rain_elev', 'rain_elev^2',
-           'pdsi_mar_apr_min', 'pdsi_mar_apr_min^2', 'snow_oct_apr', 'chill_jan_may:rain_elev', 'chill_jan_may:rain_elev^2',
-           'chill_jan_may^2:rain_elev', 'chill_jan_may^2:rain_elev^2', 'herb:pdsi_mar_apr_min',
+index <- c('(Intercept)', 'herb', 'evergreen', 'gdd_jan_apr', 'gdd_jan_apr^2', 'rain_mar_may', 'rain_mar_may^2',
+           'pdsi_mar_apr_min', 'pdsi_mar_apr_min^2', 'snow_oct_apr', 'gdd_jan_apr:rain_mar_may', 'gdd_jan_apr:rain_mar_may^2',
+           'gdd_jan_apr^2:rain_mar_may', 'gdd_jan_apr^2:rain_mar_may^2', 'herb:pdsi_mar_apr_min',
            'evergreen:pdsi_mar_apr_min', 'herb:pdsi_mar_apr_min^2',
            'evergreen:pdsi_mar_apr_min^2')
 
-names(index) <- c('(Intercept)', 'lc2', 'lc3', 'poly(chill_jan_may, 2, raw = TRUE)1', 'poly(chill_jan_may, 2, raw = TRUE)2',
-                  'poly(rain_elev, 2, raw = TRUE)1', 'poly(rain_elev, 2, raw = TRUE)2',
+names(index) <- c('(Intercept)', 'lc2', 'lc3', 'poly(gdd_jan_apr, 2, raw = TRUE)1', 'poly(gdd_jan_apr, 2, raw = TRUE)2',
+                  'poly(rain_mar_may, 2, raw = TRUE)1', 'poly(rain_mar_may, 2, raw = TRUE)2',
                   'poly(pdsi_mar_apr_min, 2, raw = TRUE)1', 'poly(pdsi_mar_apr_min, 2, raw = TRUE)2',
                   'snow_oct_apr',
-                  'poly(chill_jan_may, 2, raw = TRUE)1:poly(rain_elev, 2, raw = TRUE)1',
-                  'poly(chill_jan_may, 2, raw = TRUE)1:poly(rain_elev, 2, raw = TRUE)2',
-                  'poly(chill_jan_may, 2, raw = TRUE)2:poly(rain_elev, 2, raw = TRUE)1',
-                  'poly(chill_jan_may, 2, raw = TRUE)2:poly(rain_elev, 2, raw = TRUE)2',
+                  'poly(gdd_jan_apr, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)1',
+                  'poly(gdd_jan_apr, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)2',
+                  'poly(gdd_jan_apr, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)1',
+                  'poly(gdd_jan_apr, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)2',
                   'lc2:poly(pdsi_mar_apr_min, 2, raw = TRUE)1',
                   'lc3:poly(pdsi_mar_apr_min, 2, raw = TRUE)1',
                   'lc2:poly(pdsi_mar_apr_min, 2, raw = TRUE)2',
@@ -813,8 +818,8 @@ m_df$term <- dplyr::recode(m_df$term, !!!index)
 #also want to create categories
 m_df$category <- NA
 m_df$category[m_df$term %in% c('(Intercept)', 'herb', 'evergreen')] <- 'Landcover'
-m_df$category[m_df$term %in% c('chill_jan_may', 'chill_jan_may^2')] <- 'Temperature'
-m_df$category[m_df$term %in% c('rain_elev', 'rain_elev^2', 'pdsi_mar_apr_min',
+m_df$category[m_df$term %in% c('gdd_jan_apr', 'gdd_jan_apr^2')] <- 'Temperature'
+m_df$category[m_df$term %in% c('rain_mar_may', 'rain_mar_may^2', 'pdsi_mar_apr_min',
                                'pdsi_mar_apr_min^2', 'snow_oct_apr')] <- 'Moisture'
 m_df$category[is.na(m_df$category)] <- 'Interaction'
 
@@ -824,7 +829,7 @@ m_df$category <- ordered(m_df$category, levels = c('Landcover', 'Temperature', '
 #sort big to small effect
 m_df <- m_df[order(-abs(m_df$estimate)),]
 
-dwplot(m_df,
+dotwhisker::dwplot(m_df,
        vline = geom_vline(xintercept = 0, colour = 'grey60', linetype = 2),
        dot_args = list(aes(color = category), size = 3),
        whisker_args = list(aes(color = category), size = 1)) + 
