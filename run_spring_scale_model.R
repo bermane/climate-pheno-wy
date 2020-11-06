@@ -488,27 +488,17 @@ rm(m, i, j, vars, combos, df, vars_name)
 
 #test null model and the combinations of the best category models
 
-m_null <- lme(pirgd ~ lc, random = ~ 1 | id, data = dat3, method = 'ML')
+m_null <- lme(ss ~ lc, random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_temp <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE), 
-              random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_precip <- lme(pirgd ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                  snow_oct_apr, random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_temp_precip <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                      snow_oct_apr, 
-                     random = ~ 1 | id, data = dat3, method = 'ML')
+m_precip <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                  vpd_tavg_mean_jan_apr, random = ~ 1 | id, data = dat3, method = 'ML')
 
 #create output df
 combo_df <- data.frame(model = character(), aic = numeric())
 
 #rbind all results
 combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
-                  data.frame(model = 'm_temp', aic = AIC(m_temp)),
-                  data.frame(model = 'm_precip', aic = AIC(m_precip)),
-                  data.frame(model = 'm_temp_precip', aic = AIC(m_temp_precip)))
+                  data.frame(model = 'm_precip', aic = AIC(m_precip)))
 
 #re-check correlations as well!!!!
 
@@ -516,34 +506,15 @@ combo_df <- rbind(combo_df, data.frame(model = 'm_null', aic = AIC(m_null)),
 ###TEST FOR INTERACTIONS###
 ###########################
 
-m_base <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                snow_oct_apr, 
-              random = ~ 1 | id, data = dat3, method = 'ML')
+m_base <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                vpd_tavg_mean_jan_apr, random = ~ 1 | id, data = dat3, method = 'ML')
 
-m_intaxn1 <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                   snow_oct_apr + 
-                   poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
+m_intaxn1 <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                   vpd_tavg_mean_jan_apr + poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
                  random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_intaxn2 <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                   poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                   poly(snow_oct_apr, 2, raw = TRUE) + 
-                   poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
-                 random = ~ 1 | id, data = dat3, method = 'ML')
-
-m_all <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-               poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-               snow_oct_apr +
-               poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
-               poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
-             random = ~ 1 | id, data = dat3, method = 'ML')
 
 AIC(m_base)
 AIC(m_intaxn1)
-AIC(m_intaxn2)
-AIC(m_all)
 
 ###########################
 ###BEST MODEL VALIDATION###
@@ -553,19 +524,16 @@ AIC(m_all)
 #now need to check the model for homogeneity of variance and normality.
 
 #re run model using REML
-m_final <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                       snow_oct_apr +
-                       poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
-                     random = ~ 1 | id, data = dat3)
+m_final <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                 vpd_tavg_mean_jan_apr + poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
+               random = ~ 1 | id, data = dat3)
 
 #plot residuals of best model
 e2 <- resid(m_final, type = 'normalized')
 f2 <- fitted(m_final)
 
 #set up output plot
-jpeg('output/final/model_validation/m_temp_precip_veg_resid_dist.jpeg', width = 900, height = 600)
+jpeg('output/spring_scale/model_validation/resid_dist.jpeg', width = 900, height = 600)
 
 #test for normality
 hist(e2, xlab = 'Residuals', main = 'Normal Distribution?', breaks = 100)
@@ -574,7 +542,7 @@ hist(e2, xlab = 'Residuals', main = 'Normal Distribution?', breaks = 100)
 dev.off()
 
 #set up output plot
-jpeg('output/final/model_validation/m_final_resid_vs_fitted.jpeg', width = 900, height = 600)
+jpeg('output/spring_scale/model_validation/m_final_resid_vs_fitted.jpeg', width = 900, height = 600)
 
 #test for equal variance
 plot(x = f2, y = e2, xlab = 'Fitted values', ylab = 'Residuals', main = 'Homogenity of Variance?')
@@ -585,7 +553,7 @@ dev.off()
 #plot residuals against each explanatory variable to check for patterns
 
 #set up output plot
-jpeg('output/final/model_validation/m_final_resid_lc.jpeg', width = 900, height = 600)
+jpeg('output/spring_scale/model_validation/m_final_resid_lc.jpeg', width = 900, height = 600)
 
 #box plot of landcover
 boxplot(e2 ~ lc, data = dat3, main = 'Landcover', ylab = 'Residuals', xlab = 'Landcover')
@@ -595,14 +563,14 @@ dev.off()
 
 #plot all other explanatory variables against residuals
 #create list of variables
-vars <- c('gdd_jan_apr', 'pdsi_mar_apr_min', 'rain_mar_may',
-          'snow_oct_apr')
+vars <- c('pdsi_mar_apr_min', 'rain_mar_may',
+          'vpd_tavg_mean_jan_apr')
 
 #loop through
 for(var in vars){
   
   #set up output plot
-  jpeg(str_c('output/final/model_validation/m_final_resid_', var, '.jpeg'), width = 900, height = 600)
+  jpeg(str_c('output/spring_scale/model_validation/m_final_resid_', var, '.jpeg'), width = 900, height = 600)
   
   #plot variable against residuals
   plot(x = dat3[, var], y = e2, ylab = 'Residuals', xlab = var, main = var)
@@ -633,11 +601,10 @@ anova(m_resid)
 #very significant means we don't have equal variance...
 
 #compute r^2 as a measure of goodness of fit. use lme4 package fit to run correct functions
-m_final_lme4 <- lmer(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                       snow_oct_apr +
-                       poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
-                       poly(pdsi_mar_apr_min, 2, raw = TRUE):lc + (1 | id), dat3)
+m_final_lme4 <- lmer(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                       vpd_tavg_mean_jan_apr + 
+                       poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) + 
+                       (1 | id), dat3)
 
 #compute model checks
 performance::check_model(m_final_lme4)
@@ -662,26 +629,24 @@ fitted <- as.data.frame(s$tTable)
 #################
 
 #set up output plot
-jpeg('output/final/model_validation/predicted_vs_observed_pirgd.jpeg', width = 600, height = 600)
+jpeg('output/spring_scale/model_validation/predicted_vs_observed_ss.jpeg', width = 600, height = 600)
 
 #actual vs. predicted pirgd values
-plot(x = dat3$pirgd, y = f2, xlab = 'Observed', ylab = 'Predicted', main = 'Predicted vs. Observed PIRGd',
-     xlim = c(25, 250), ylim = c(25, 250))
+plot(x = dat3$ss, y = f2, xlab = 'Observed', ylab = 'Predicted', main = 'Predicted vs. Observed Spring Scale',
+     xlim = c(0, 50), ylim = c(0, 50))
 abline(1,1, col = 'blue')
 
 #dev.off
 dev.off()
 
 #re-run model with original values to see correct effect size
-m_original <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
-                    poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                    snow_oct_apr +
-                    poly(gdd_jan_apr, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
-                    poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
+m_original <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                    vpd_tavg_mean_jan_apr + 
+                    poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
                   random = ~ 1 | id, data = dat2)
 
 #set up output plot
-jpeg('output/final/model_validation/variable_effect_size.jpeg', width = 1600, height = 902)
+jpeg('output/spring_scale/model_validation/variable_effect_size.jpeg', width = 1600, height = 902)
 
 #plot all effects using correct effect size
 plot(effects::predictorEffects(m_original))
@@ -691,22 +656,22 @@ dev.off()
 
 #plot each effect separately!
 #create list of effects variables
-vars_effect <- c('lc', 'gdd_jan_apr', 'pdsi_mar_apr_min', 'rain_mar_may',
-                 'snow_oct_apr')
+vars_effect <- c('lc', 'pdsi_mar_apr_min', 'rain_mar_may',
+                 'vpd_tavg_mean_jan_apr')
 
 #plot each effect using correct effect size
 #manual saving is working better
 #code for variables
-plot(effects::predictorEffect(vars_effect[5], m_original),
-     axes = list(y = list(lim = c(60, 300), lab = 'pirgd (doy)'),
-                 x = list(snow_oct_apr = list(lab = 'Snow Oct-Apr'))),
-     main = 'Snow Oct-Apr Predictor Effect')
+plot(effects::predictorEffect(vars_effect[4], m_original),
+     axes = list(y = list(lim = c(0, 150), lab = 'Spring Scale'),
+                 x = list(vpd_tavg_mean_jan_apr = list(lab = 'Mean VPD Jan-Apr'))),
+     main = 'Mean VPD Jan-Apr Predictor Effect')
 
 #set up output plot
-jpeg('output/final/model_validation/pirgd_vs_landcover.jpeg', width = 900, height = 600)
+jpeg('output/spring_scale/model_validation/ss_vs_landcover.jpeg', width = 900, height = 600)
 
-#plot distribution of LC classes vs. pirgd to make sure the LC effect makes sense
-boxplot(pirgd ~lc, data = dat3, main = 'PIRGd vs Landcover', ylab = 'PIRGd', xlab = 'Landcover (Shrub, Herb, Evergreen)')
+#plot distribution of LC classes vs. ss to make sure the LC effect makes sense
+boxplot(ss ~ lc, data = dat3, main = 'SS vs Landcover', ylab = 'SS', xlab = 'Landcover (Shrub, Herb, Evergreen)')
 
 #dev.off
 dev.off()
@@ -732,7 +697,7 @@ lc[lc == 5] <- NA
 lc[lc == 4] <- 3
 
 #set up output plot
-jpeg('output/final/model_validation/resid_size_sampling_grid.jpeg', width = 715, height = 495)
+jpeg('output/spring_scale/model_validation/resid_size_sampling_grid.jpeg', width = 715, height = 495)
 
 #plot grid points using residual size
 plot(lc, legend=FALSE, col=c("coral3", "papayawhip", "forestgreen"), xaxt='n', yaxt='n',
@@ -748,7 +713,7 @@ plot(grid, pch = 19, cex = abs(grid@data$resid)*20, add = T)
 dev.off()
 
 #create a new df to look at elevation categories
-dat_pdsi <- data.frame(pdsi = dat2$pdsi_mar_apr_min, pirgd = dat2$pirgd, dem = dat2$dem, lc = dat2$lc)
+dat_pdsi <- data.frame(pdsi = dat2$pdsi_mar_apr_min, ss = dat2$ss, dem = dat2$dem, lc = dat2$lc)
 
 #separate elevations
 elev <- quantile(dat_pdsi$dem, probs = c(1/3, 2/3))
@@ -767,21 +732,21 @@ levels(dat_pdsi$elev) <- c('Less than 1645 m', '1645 - 2298 m', 'Above 2298 m')
 levels(dat_pdsi$lc) <- c('Shrub', 'Herb', 'Evergreen')
 
 #set up output plot
-jpeg('output/final/model_validation/pdsi_pirgd_lc.jpeg', width = 715, height = 495)
+jpeg('output/spring_scale/model_validation/pdsi_ss_lc.jpeg', width = 715, height = 495)
 
 #why does pdsi have a strong quadratic curve?
 #check to see if pdsi varies at different elevation, or by landcovers...
-ggplot(dat_pdsi, aes(x = pdsi, y = pirgd, color = lc)) + geom_point(size = .2) +
+ggplot(dat_pdsi, aes(x = pdsi, y = ss, color = lc)) + geom_point(size = .2) +
   geom_smooth() + theme_classic()
 
 #dev.off
 dev.off()
 
 #set up output plot
-jpeg('output/final/model_validation/pdsi_pirgd_elev.jpeg', width = 715, height = 495)
+jpeg('output/spring_scale/model_validation/pdsi_ss_elev.jpeg', width = 715, height = 495)
 
 #plot!
-ggplot(dat_pdsi, aes(x = pdsi, y = pirgd, color = elev)) + geom_point(size = .2) +
+ggplot(dat_pdsi, aes(x = pdsi, y = ss, color = elev)) + geom_point(size = .2) +
   geom_smooth() + theme_classic()
 
 #dev.off
@@ -793,24 +758,19 @@ m_df <- data.frame(term = rownames(fitted), estimate = fitted$Value, std.error =
 
 #change names of terms
 #create index first
-index <- c('(Intercept)', 'herb', 'evergreen', 'gdd_jan_apr', 'gdd_jan_apr^2', 'rain_mar_may', 'rain_mar_may^2',
-           'pdsi_mar_apr_min', 'pdsi_mar_apr_min^2', 'snow_oct_apr', 'gdd_jan_apr:rain_mar_may', 'gdd_jan_apr:rain_mar_may^2',
-           'gdd_jan_apr^2:rain_mar_may', 'gdd_jan_apr^2:rain_mar_may^2', 'herb:pdsi_mar_apr_min',
-           'evergreen:pdsi_mar_apr_min', 'herb:pdsi_mar_apr_min^2',
-           'evergreen:pdsi_mar_apr_min^2')
+index <- c('(Intercept)', 'herb', 'evergreen', 'rain_mar_may', 'rain_mar_may^2',
+           'pdsi_mar_apr_min', 'pdsi_mar_apr_min^2', 'vpd_tavg_mean_jan_apr', 'pdsi_mar_apr_min:rain_mar_may', 
+           'pdsi_mar_apr_min:rain_mar_may^2',
+           'pdsi_mar_apr_min^2:rain_mar_may', 'pdsi_mar_apr_min^2:rain_mar_may^2')
 
-names(index) <- c('(Intercept)', 'lc2', 'lc3', 'poly(gdd_jan_apr, 2, raw = TRUE)1', 'poly(gdd_jan_apr, 2, raw = TRUE)2',
+names(index) <- c('(Intercept)', 'lcherb', 'lcevergreen',
                   'poly(rain_mar_may, 2, raw = TRUE)1', 'poly(rain_mar_may, 2, raw = TRUE)2',
                   'poly(pdsi_mar_apr_min, 2, raw = TRUE)1', 'poly(pdsi_mar_apr_min, 2, raw = TRUE)2',
-                  'snow_oct_apr',
-                  'poly(gdd_jan_apr, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)1',
-                  'poly(gdd_jan_apr, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)2',
-                  'poly(gdd_jan_apr, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)1',
-                  'poly(gdd_jan_apr, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)2',
-                  'lc2:poly(pdsi_mar_apr_min, 2, raw = TRUE)1',
-                  'lc3:poly(pdsi_mar_apr_min, 2, raw = TRUE)1',
-                  'lc2:poly(pdsi_mar_apr_min, 2, raw = TRUE)2',
-                  'lc3:poly(pdsi_mar_apr_min, 2, raw = TRUE)2')
+                  'vpd_tavg_mean_jan_apr',
+                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)1',
+                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)2',
+                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)1',
+                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)2')
 
 #replace values of term variable
 m_df$term <- dplyr::recode(m_df$term, !!!index)
@@ -818,13 +778,12 @@ m_df$term <- dplyr::recode(m_df$term, !!!index)
 #also want to create categories
 m_df$category <- NA
 m_df$category[m_df$term %in% c('(Intercept)', 'herb', 'evergreen')] <- 'Landcover'
-m_df$category[m_df$term %in% c('gdd_jan_apr', 'gdd_jan_apr^2')] <- 'Temperature'
 m_df$category[m_df$term %in% c('rain_mar_may', 'rain_mar_may^2', 'pdsi_mar_apr_min',
-                               'pdsi_mar_apr_min^2', 'snow_oct_apr')] <- 'Moisture'
+                               'pdsi_mar_apr_min^2', 'vpd_tavg_mean_jan_apr')] <- 'Moisture'
 m_df$category[is.na(m_df$category)] <- 'Interaction'
 
 #order category variable
-m_df$category <- ordered(m_df$category, levels = c('Landcover', 'Temperature', 'Moisture', 'Vegetation', 'Interaction'))
+m_df$category <- ordered(m_df$category, levels = c('Landcover', 'Moisture', 'Interaction'))
 
 #sort big to small effect
 m_df <- m_df[order(-abs(m_df$estimate)),]
@@ -834,8 +793,8 @@ dotwhisker::dwplot(m_df,
        dot_args = list(aes(color = category), size = 3),
        whisker_args = list(aes(color = category), size = 1)) + 
   theme_bw() + xlab('Coefficient Estimate') + ylab('') +
-  ggtitle('Effect Size of PIRGd Drivers') + 
-  scale_colour_manual(name = 'Category', values = c('#EE6677', '#CCBB44', '#4477AA', '#228833', '#AA3377')) +
+  ggtitle('Effect Size of Spring Scale Drivers') + 
+  scale_colour_manual(name = 'Category', values = c('#EE6677', '#4477AA', '#AA3377')) +
   theme(legend.position = (c(0.72, 0.03)),
         legend.justification = c(0, 0),
         legend.background = element_rect(colour="grey80"),
