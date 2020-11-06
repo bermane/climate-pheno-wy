@@ -661,11 +661,50 @@ vars_effect <- c('lc', 'pdsi_mar_apr_min', 'rain_mar_may',
 
 #plot each effect using correct effect size
 #manual saving is working better
-#code for variables
+#code for var 1
+
+#plot
+plot(effects::predictorEffect(vars_effect[1], m_original),
+     axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
+                 x = list(lc = list(lab = 'Landcover'))),
+     main = 'Landcover Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 2
+#calc quantiles and mean and use nice rounded values
+quantile(dat2$rain_mar_may, 0.25)
+mean(dat2$rain_mar_may)
+quantile(dat2$rain_mar_may, 0.75)
+
+#plot
+plot(effects::predictorEffect(vars_effect[2], m_original,
+                              xlevels=list(rain_mar_may = c(100, 150, 200))),
+     axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
+                 x = list(pdsi_mar_apr_min = list(lab = 'Min PDSI Mar-Apr'))),
+     main = 'Min PDSI Mar-Apr Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 3
+#calc quantiles and mean and use nice rounded values
+quantile(dat2$pdsi_mar_apr_min, 0.25)
+mean(dat2$pdsi_mar_apr_min)
+quantile(dat2$pdsi_mar_apr_min, 0.75)
+
+#plot
+plot(effects::predictorEffect(vars_effect[3], m_original,
+                              xlevels=list(pdsi_mar_apr_min = c(-2, 0, 2))),
+     axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
+                 x = list(rain_mar_may = list(lab = 'Rain Mar-May'))),
+     main = 'Rain Mar-May Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 4
+#plot
 plot(effects::predictorEffect(vars_effect[4], m_original),
-     axes = list(y = list(lim = c(0, 150), lab = 'Spring Scale'),
+     axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
                  x = list(vpd_tavg_mean_jan_apr = list(lab = 'Mean VPD Jan-Apr'))),
-     main = 'Mean VPD Jan-Apr Predictor Effect')
+     main = 'Mean VPD Jan-Apr Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
 
 #set up output plot
 jpeg('output/spring_scale/model_validation/ss_vs_landcover.jpeg', width = 900, height = 600)
