@@ -694,13 +694,72 @@ dev.off()
 vars_effect <- c('lc', 'gdd_jan_apr', 'pdsi_mar_apr_min', 'rain_mar_may',
                  'snow_oct_apr')
 
+#interested in scatter of gdd vs. rain to measure interaction
+plot(x = dat2$gdd_jan_apr, y = dat2$rain_mar_may,
+     xlab = "GDD Jan-Apr", ylab = "Rain Mar-May")
+
 #plot each effect using correct effect size
 #manual saving is working better
-#code for variables
+#code for var 1
+#calc quantiles and mean and use nice rounded values
+quantile(dat2$pdsi_mar_apr_mean, 0.25)
+mean(dat2$pdsi_mar_apr_mean)
+quantile(dat2$pdsi_mar_apr_mean, 0.75)
+
+#plot
+plot(effects::predictorEffect(vars_effect[1], m_original,
+                              xlevels=list(pdsi_mar_apr_min = c(-2, 0, 2))),
+     axes = list(y = list(lim = c(60, 300), lab = 'PIRGd (DOY)'),
+                 x = list(lc = list(lab = 'Landcover'))),
+     main = 'Landcover Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 2
+#calc quantiles and mean and use nice rounded values
+quantile(dat2$rain_mar_may, 0.25)
+mean(dat2$rain_mar_may)
+quantile(dat2$rain_mar_may, 0.75)
+
+#plot
+plot(effects::predictorEffect(vars_effect[2], m_original,
+                              xlevels=list(rain_mar_may = c(100, 150, 200))),
+     axes = list(y = list(lim = c(60, 300), lab = 'PIRGd (DOY)'),
+                 x = list(gdd_jan_apr = list(lab = 'GDD Jan-Apr'))),
+     main = 'GDD Jan-Apr Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 3
+#lc so no quartiles
+
+#plot
+plot(effects::predictorEffect(vars_effect[3], m_original),
+     axes = list(y = list(lim = c(60, 300), lab = 'PIRGd (DOY)'),
+                 x = list(pdsi_mar_apr_min = list(lab = 'Min PDSI Mar-Apr'))),
+     main = 'Min PDSI Mar-Apr Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 4
+#calc quantiles and mean and use nice rounded values
+quantile(dat2$gdd_jan_apr, 0.25)
+mean(dat2$gdd_jan_apr)
+quantile(dat2$gdd_jan_apr, 0.75)
+
+#plot
+plot(effects::predictorEffect(vars_effect[4], m_original,
+                              xlevels=list(gdd_jan_apr = c(15, 60, 95))),
+     axes = list(y = list(lim = c(60, 300), lab = 'PIRGd (DOY)'),
+                 x = list(rain_mar_may = list(lab = 'Rain Mar-May'))),
+     main = 'Rain Mar-May Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
+#code for var 5
+#plot
 plot(effects::predictorEffect(vars_effect[5], m_original),
-     axes = list(y = list(lim = c(60, 300), lab = 'pirgd (doy)'),
-                 x = list(snow_oct_apr = list(lab = 'Snow Oct-Apr'))),
-     main = 'Snow Oct-Apr Predictor Effect')
+     axes = list(y = list(lim = c(60, 300), lab = 'PIRGd (DOY)'),
+                 x = list(snow_oct_apr = list(lab = 'Snow Oct_apr'))),
+     main = 'Snow Oct-Apr Predictor Effect',
+     lines=list(multiline=TRUE), confint=list(style="auto"))
+
 
 #set up output plot
 jpeg('output/final/model_validation/pirgd_vs_landcover.jpeg', width = 900, height = 600)
