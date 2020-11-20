@@ -142,7 +142,7 @@ foreach::foreach(m = mods) %dopar% {
   
   #loop through time periods
   #for(yr in years){
-  for(yr in 2040){
+  for(yr in 2070){
     
     #loop through rcp scenarios
     #for(r in rcp){

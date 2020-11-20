@@ -1,5 +1,8 @@
 #this code predicts future PIRGd using future climate scenario data and the PIRGd model built
 #using the run_pirgd_model function
+#the first part calculates average PIRGd over the time periods using the average annual climate data
+#the second part calculates annual PIRGd over the time periods, which can then be used to calculate
+#average pirgd (currently the preferred method in subsequent code)
 
 #load packages
 library(rgdal)
@@ -17,6 +20,9 @@ library(effects)
 library(ggplot2)
 library(car)
 library(performance)
+library(doParallel)
+library(parallel)
+library(foreach)
 
 #set wd
 setwd('/Volumes/SSD/climate_effects')
@@ -94,9 +100,9 @@ m_pirgd <- lme(pirgd ~ lc + poly(gdd_jan_apr, 2, raw = TRUE) +
                     poly(pdsi_mar_apr_min, 2, raw = TRUE):lc, 
                   random = ~ 1 | id, data = dat2)
 
-###################################################
-###LOAD AVERAGE CLIMATE DATA AND RUN PREDICTIONS###
-###################################################
+#################################
+###LOAD AND RESAMPLE LANDCOVER###
+#################################
 
 #first we need to resample landcover to include it in the model
 #load climate raster template
@@ -115,6 +121,10 @@ lc <- lc %>% raster::aggregate(., fact = 16, fun = modal) %>%
 
 #extract lc values as vector
 lc_v <- getValues(lc)
+
+###################################################
+###LOAD AVERAGE CLIMATE DATA AND RUN PREDICTIONS###
+###################################################
 
 #load list of climate data csv files
 clim_files <- list.files('wy_projections/dat', 'dat_avg',
@@ -171,15 +181,39 @@ for(i in 1:length(clim_files)){
 #################################################
 
 #load list of daily climate data csv files
-#middle scenario only
-clim_files <- list.files('wy_projections/dat', 'dat_HadGEM2-ES365',
+clim_files <- list.files('wy_projections/dat', 'dat',
                          full.names = T)
 
 #load file names only
-clim_names <- list.files('wy_projections/dat', 'dat_HadGEM2-ES365')
+clim_names <- list.files('wy_projections/dat', 'dat')
+
+#remove files with average data only
+clim_files <- clim_files[str_detect(clim_files, 'dat_avg') == F]
+clim_names <- clim_names[str_detect(clim_names, 'dat_avg') == F]
+
+#register parallel backend
+cl <- parallel::makeCluster(5)
+doParallel::registerDoParallel(cl)
 
 #loop through files to generate predictions
-for(i in 1:length(clim_files)){
+foreach::foreach(i = 1:length(clim_files)) %dopar% {
+  
+  #load packages
+  library(rgdal)
+  library(sp)
+  library(raster)
+  library(dynatopmodel)
+  library(tidyverse)
+  library(data.table)
+  library(lme4)
+  library(tictoc)
+  library(scales)
+  library(nlme)
+  library(berryFunctions)
+  library(effects)
+  library(ggplot2)
+  library(car)
+  library(performance)
   
   #load sample climate data
   dat_clim <- read.csv(clim_files[i])
@@ -233,5 +267,8 @@ for(i in 1:length(clim_files)){
   rm(pred_ras, out_name, index, dat_clim, pred)
   
 }
+
+#stop parallel cluster
+parallel::stopCluster(cl)
 
 
