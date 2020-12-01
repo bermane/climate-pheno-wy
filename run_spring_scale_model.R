@@ -513,8 +513,24 @@ m_intaxn1 <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar
                    vpd_tavg_mean_jan_apr + poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
                  random = ~ 1 | id, data = dat3, method = 'ML')
 
+m_intaxn2 <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                   vpd_tavg_mean_jan_apr + vpd_tavg_mean_jan_apr:poly(rain_mar_may, 2, raw = TRUE), 
+                 random = ~ 1 | id, data = dat3, method = 'ML')
+
+m_intaxn3 <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                   vpd_tavg_mean_jan_apr + vpd_tavg_mean_jan_apr:poly(pdsi_mar_apr_min, 2, raw = TRUE), 
+                 random = ~ 1 | id, data = dat3, method = 'ML')
+
+m_intaxn_1_2 <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
+                      vpd_tavg_mean_jan_apr + poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
+                      vpd_tavg_mean_jan_apr:poly(rain_mar_may, 2, raw = TRUE), 
+                    random = ~ 1 | id, data = dat3, method = 'ML')
+
 AIC(m_base)
 AIC(m_intaxn1)
+AIC(m_intaxn2)
+AIC(m_intaxn3)
+AIC(m_intaxn_1_2)
 
 ###########################
 ###BEST MODEL VALIDATION###
@@ -525,7 +541,8 @@ AIC(m_intaxn1)
 
 #re run model using REML
 m_final <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
-                 vpd_tavg_mean_jan_apr + poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
+                 vpd_tavg_mean_jan_apr + poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) +
+                 vpd_tavg_mean_jan_apr:poly(rain_mar_may, 2, raw = TRUE), 
                random = ~ 1 | id, data = dat3)
 
 #plot residuals of best model
@@ -604,6 +621,7 @@ anova(m_resid)
 m_final_lme4 <- lmer(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                        vpd_tavg_mean_jan_apr + 
                        poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) + 
+                       vpd_tavg_mean_jan_apr:poly(rain_mar_may, 2, raw = TRUE) +
                        (1 | id), dat3)
 
 #compute model checks
@@ -642,7 +660,8 @@ dev.off()
 #re-run model with original values to see correct effect size
 m_original <- lme(ss ~ lc + poly(pdsi_mar_apr_min, 2, raw = TRUE) + poly(rain_mar_may, 2, raw = TRUE) + 
                     vpd_tavg_mean_jan_apr + 
-                    poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE), 
+                    poly(pdsi_mar_apr_min, 2, raw = TRUE):poly(rain_mar_may, 2, raw = TRUE) + 
+                    vpd_tavg_mean_jan_apr:poly(rain_mar_may, 2, raw = TRUE), 
                   random = ~ 1 | id, data = dat2)
 
 #set up output plot
@@ -690,17 +709,37 @@ quantile(dat2$pdsi_mar_apr_min, 0.25)
 mean(dat2$pdsi_mar_apr_min)
 quantile(dat2$pdsi_mar_apr_min, 0.75)
 
-#plot
+quantile(dat2$vpd_tavg_mean_jan_apr, 0.25)
+mean(dat2$vpd_tavg_mean_jan_apr)
+quantile(dat2$vpd_tavg_mean_jan_apr, 0.75)
+
+#plot with 3 vpd graphs
 plot(effects::predictorEffect(vars_effect[3], m_original,
-                              xlevels=list(pdsi_mar_apr_min = c(-2, 0, 2))),
+                              xlevels=list(pdsi_mar_apr_min = c(-2, 0, 2),
+                                           vpd_tavg_mean_jan_apr = c(260, 380, 490))),
      axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
                  x = list(rain_mar_may = list(lab = 'Rain Mar-May'))),
      main = 'Rain Mar-May Predictor Effect',
      lines=list(multiline=TRUE), confint=list(style="auto"))
 
+#plot with 3 rain graphs
+plot(effects::predictorEffect(vars_effect[3], m_original,
+                              xlevels=list(pdsi_mar_apr_min = c(-2, 0, 2),
+                                           vpd_tavg_mean_jan_apr = c(260, 380, 490))),
+     axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
+                 x = list(rain_mar_may = list(lab = 'Rain Mar-May'))),
+     main = 'Rain Mar-May Predictor Effect',
+     lines=list(multiline=TRUE, z.var = 'vpd_tavg_mean_jan_apr'), confint=list(style="auto"))
+
 #code for var 4
+#calc quantiles and mean and use nice rounded values
+quantile(dat2$rain_mar_may, 0.25)
+mean(dat2$rain_mar_may)
+quantile(dat2$rain_mar_may, 0.75)
+
 #plot
-plot(effects::predictorEffect(vars_effect[4], m_original),
+plot(effects::predictorEffect(vars_effect[4], m_original,
+                              xlevels=list(rain_mar_may = c(100, 150, 200))),
      axes = list(y = list(lim = c(0, 60), lab = 'Spring Scale'),
                  x = list(vpd_tavg_mean_jan_apr = list(lab = 'Mean VPD Jan-Apr'))),
      main = 'Mean VPD Jan-Apr Predictor Effect',
@@ -800,7 +839,8 @@ m_df <- data.frame(term = rownames(fitted), estimate = fitted$Value, std.error =
 index <- c('(Intercept)', 'herb', 'evergreen', 'rain_mar_may', 'rain_mar_may^2',
            'pdsi_mar_apr_min', 'pdsi_mar_apr_min^2', 'vpd_tavg_mean_jan_apr', 'pdsi_mar_apr_min:rain_mar_may', 
            'pdsi_mar_apr_min:rain_mar_may^2',
-           'pdsi_mar_apr_min^2:rain_mar_may', 'pdsi_mar_apr_min^2:rain_mar_may^2')
+           'pdsi_mar_apr_min^2:rain_mar_may', 'pdsi_mar_apr_min^2:rain_mar_may^2',
+           'rain_mar_may:vpd_tavg_mean_jan_apr', 'rain_mar_may^2:vpd_tavg_mean_jan_apr')
 
 names(index) <- c('(Intercept)', 'lcherb', 'lcevergreen',
                   'poly(rain_mar_may, 2, raw = TRUE)1', 'poly(rain_mar_may, 2, raw = TRUE)2',
@@ -809,7 +849,9 @@ names(index) <- c('(Intercept)', 'lcherb', 'lcevergreen',
                   'poly(pdsi_mar_apr_min, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)1',
                   'poly(pdsi_mar_apr_min, 2, raw = TRUE)1:poly(rain_mar_may, 2, raw = TRUE)2',
                   'poly(pdsi_mar_apr_min, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)1',
-                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)2')
+                  'poly(pdsi_mar_apr_min, 2, raw = TRUE)2:poly(rain_mar_may, 2, raw = TRUE)2',
+                  'poly(rain_mar_may, 2, raw = TRUE)1:vpd_tavg_mean_jan_apr',
+                  'poly(rain_mar_may, 2, raw = TRUE)2:vpd_tavg_mean_jan_apr')
 
 #replace values of term variable
 m_df$term <- dplyr::recode(m_df$term, !!!index)

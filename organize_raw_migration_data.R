@@ -39,10 +39,7 @@ file_names <- list.files('/Volumes/SSD/climate_effects/mig_data/AR_North')
 #create count
 count <- 1
 
-#create df of longitude issues
-long_issues <- data.frame(file = character())
-
-#loop through all individuals
+#loop through all individuals #UTM ZONE 13N
 for(i in 1:length(files)){
   
   #load individual
@@ -71,16 +68,13 @@ for(i in 1:length(files)){
   ind$GlobalID <- str_c('Mule_WY_', ind$Population, '_', ind$AY_ID)
   
   #check for problems with longitude
-  if(ind$longitude[1] > 200){
-    long_issues <- rbind(long_issues, data.frame(file = file_names[i]))
-  }else{
-    
+
     #create spdf if i = 1 otherwise bind spdf
     if(count == 1){
       
       #create spdf
-      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                         proj4string = crs(dat_ref),
+      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                         proj4string = crs('+init=epsg:32613'),
                                          data = data.frame(AnimalID = ind$AnimalID,
                                                            Timestamp = ind$Timestamp,
                                                            DOP = ind$DOP,
@@ -91,8 +85,8 @@ for(i in 1:length(files)){
       count <- count + 1
     }else{
       dat_spdf <- rbind(dat_spdf,
-                        SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                               proj4string = crs(dat_ref),
+                        SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                               proj4string = crs('+init=epsg:32613'),
                                                data = data.frame(AnimalID = ind$AnimalID,
                                                                  Timestamp = ind$Timestamp,
                                                                  DOP = ind$DOP,
@@ -101,11 +95,10 @@ for(i in 1:length(files)){
                                                                  GlobalID = ind$GlobalID)))  
       
     }
-  }
 }
 
-#check histogram of longitudes
-hist(dat_spdf@coords[,1])
+#change projection to lat lon
+dat_spdf <- spTransform(dat_spdf, CRSobj = crs(dat_ref))
 
 #check plot in WY
 plot(wy)
@@ -117,13 +110,11 @@ dat <- dat_spdf@data
 #change name to match ellen's
 data.sub <- dat_spdf
 
-#make sure to record issues with longitude in external excel file!!
-
 #save RData file with spdf
 save(data.sub, file = "mig_data/Organized Data/Mule_WY_AtlanticRimNorth.RData")
 
 #clean up
-rm(dat, dat_spdf, data.sub, ind, long_issues, i, count, file_names, files)
+rm(dat, dat_spdf, data.sub, ind, i, count, file_names, files)
 
 ########################
 ###ATLANTIC RIM SOUTH###
@@ -136,10 +127,7 @@ file_names <- list.files('/Volumes/SSD/climate_effects/mig_data/AR_South')
 #create count
 count <- 1
 
-#create df of longitude issues
-long_issues <- data.frame(file = character())
-
-#loop through all individuals
+#loop through all individuals #UTM ZONE 13N
 for(i in 1:length(files)){
   
   #load individual
@@ -169,17 +157,12 @@ for(i in 1:length(files)){
   #create global id
   ind$GlobalID <- str_c('Mule_WY_', ind$Population, '_', ind$AY_ID)
   
-  #check for problems with longitude
-  if(ind$longitude[1] > 200){
-    long_issues <- rbind(long_issues, data.frame(file = file_names[i]))
-  }else{
-    
     #create spdf if i = 1 otherwise bind spdf
     if(count == 1){
       
       #create spdf
-      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                         proj4string = crs(dat_ref),
+      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                         proj4string = crs('+init=epsg:32613'),
                                          data = data.frame(AnimalID = ind$AnimalID,
                                                            Timestamp = ind$Timestamp,
                                                            DOP = ind$DOP,
@@ -190,8 +173,8 @@ for(i in 1:length(files)){
       count <- count + 1
     }else{
       dat_spdf <- rbind(dat_spdf,
-                        SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                               proj4string = crs(dat_ref),
+                        SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                               proj4string = crs('+init=epsg:32613'),
                                                data = data.frame(AnimalID = ind$AnimalID,
                                                                  Timestamp = ind$Timestamp,
                                                                  DOP = ind$DOP,
@@ -200,11 +183,10 @@ for(i in 1:length(files)){
                                                                  GlobalID = ind$GlobalID)))  
       
     }
-  }
 }
 
-#check histogram of longitudes
-hist(dat_spdf@coords[,1])
+#change projection to lat lon
+dat_spdf <- spTransform(dat_spdf, CRSobj = crs(dat_ref))
 
 #check plot in WY
 plot(wy)
@@ -216,13 +198,11 @@ dat <- dat_spdf@data
 #change name to match ellen's
 data.sub <- dat_spdf
 
-#make sure to record issues with longitude in external excel file!!
-
 #save RData file with spdf
 save(data.sub, file = "mig_data/Organized Data/Mule_WY_AtlanticRimSouth.RData")
 
 #clean up
-rm(dat, dat_spdf, data.sub, ind, long_issues, i, count, file_names, files)
+rm(dat, dat_spdf, data.sub, ind, i, count, file_names, files)
 
 #########################
 ###Platte Valley North###
@@ -234,9 +214,6 @@ file_names <- list.files('/Volumes/SSD/climate_effects/mig_data/PV_North')
 
 #create count
 count <- 1
-
-#create df of longitude issues
-long_issues <- data.frame(file = character())
 
 #loop through all individuals
 for(i in 1:length(files)){
@@ -271,17 +248,12 @@ for(i in 1:length(files)){
   #create global id
   ind$GlobalID <- str_c('Mule_WY_', ind$Population, '_', ind$AY_ID)
   
-  #check for problems with longitude
-  if(ind$longitude[1] > 200){
-    long_issues <- rbind(long_issues, data.frame(file = file_names[i]))
-  }else{
-    
     #create spdf if i = 1 otherwise bind spdf
     if(count == 1){
       
       #create spdf
-      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                         proj4string = crs(dat_ref),
+      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                         proj4string = crs('+init=epsg:32613'),
                                          data = data.frame(AnimalID = ind$AnimalID,
                                                            Timestamp = ind$Timestamp,
                                                            DOP = ind$DOP,
@@ -292,8 +264,8 @@ for(i in 1:length(files)){
       count <- count + 1
     }else{
       dat_spdf <- rbind(dat_spdf,
-                        SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                               proj4string = crs(dat_ref),
+                        SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                               proj4string = crs('+init=epsg:32613'),
                                                data = data.frame(AnimalID = ind$AnimalID,
                                                                  Timestamp = ind$Timestamp,
                                                                  DOP = ind$DOP,
@@ -302,11 +274,10 @@ for(i in 1:length(files)){
                                                                  GlobalID = ind$GlobalID)))  
       
     }
-  }
 }
 
-#check histogram of longitudes
-hist(dat_spdf@coords[,1])
+#change projection to lat lon
+dat_spdf <- spTransform(dat_spdf, CRSobj = crs(dat_ref))
 
 #check plot in WY
 plot(wy)
@@ -324,7 +295,7 @@ data.sub <- dat_spdf
 save(data.sub, file = "mig_data/Organized Data/Mule_WY_PlatteValleyNorth.RData")
 
 #clean up
-rm(dat, dat_spdf, data.sub, ind, long_issues, i, count, file_names, files, check)
+rm(dat, dat_spdf, data.sub, ind, i, count, file_names, files, check)
 
 #########################
 ###Platte Valley South###
@@ -336,9 +307,6 @@ file_names <- list.files('/Volumes/SSD/climate_effects/mig_data/PV_South')
 
 #create count
 count <- 1
-
-#create df of longitude issues
-long_issues <- data.frame(file = character())
 
 #loop through all individuals
 for(i in 1:length(files)){
@@ -373,17 +341,12 @@ for(i in 1:length(files)){
   #create global id
   ind$GlobalID <- str_c('Mule_WY_', ind$Population, '_', ind$AY_ID)
   
-  #check for problems with longitude
-  if(ind$longitude[1] > 200){
-    long_issues <- rbind(long_issues, data.frame(file = file_names[i]))
-  }else{
-    
     #create spdf if i = 1 otherwise bind spdf
     if(count == 1){
       
       #create spdf
-      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                         proj4string = crs(dat_ref),
+      dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                         proj4string = crs('+init=epsg:32613'),
                                          data = data.frame(AnimalID = ind$AnimalID,
                                                            Timestamp = ind$Timestamp,
                                                            DOP = ind$DOP,
@@ -394,8 +357,8 @@ for(i in 1:length(files)){
       count <- count + 1
     }else{
       dat_spdf <- rbind(dat_spdf,
-                        SpatialPointsDataFrame(coords = matrix(c(ind$longitude, ind$latitude), ncol = 2),
-                                               proj4string = crs(dat_ref),
+                        SpatialPointsDataFrame(coords = matrix(c(ind$easting, ind$northing), ncol = 2),
+                                               proj4string = crs('+init=epsg:32613'),
                                                data = data.frame(AnimalID = ind$AnimalID,
                                                                  Timestamp = ind$Timestamp,
                                                                  DOP = ind$DOP,
@@ -404,11 +367,10 @@ for(i in 1:length(files)){
                                                                  GlobalID = ind$GlobalID)))  
       
     }
-  }
 }
 
-#check histogram of longitudes
-hist(dat_spdf@coords[,1])
+#change projection to lat lon
+dat_spdf <- spTransform(dat_spdf, CRSobj = crs(dat_ref))
 
 #check plot in WY
 plot(wy)
@@ -420,10 +382,56 @@ dat <- dat_spdf@data
 #change name to match ellen's
 data.sub <- dat_spdf
 
-#make sure to record issues with longitude in external excel file!!
-
 #save RData file with spdf
 save(data.sub, file = "mig_data/Organized Data/Mule_WY_PlatteValleySouth.RData")
 
 #clean up
-rm(dat, dat_spdf, data.sub, ind, long_issues, i, count, file_names, files, check)
+rm(dat, dat_spdf, data.sub, ind, i, count, file_names, files, check)
+
+########################
+###SweetWaterGreenMtn###
+########################
+
+#load shape file of all data
+ind <- readOGR('mig_data/SweetwaterGreenMtnData/33CleanDirectDownload/GreenMSweetWfilter3.shp')
+
+#change date column to POSIXct
+ind@data$date <- as.POSIXct(ind@data$date, tz = 'GMT', format = '%Y-%m-%d %H:%M:%OS')
+
+#remove second date column
+ind@data <- ind@data[, !(colnames(ind@data) %in% 'Date_1')]
+
+#change column names
+colnames(ind@data) <- c('AnimalID', 'Timestamp')
+
+#add additional columns
+ind@data$Population <- 'SweetWaterGreenMtn'
+ind@data$AY_ID <- str_c(ind@data$AnimalID,
+                        '_', lubridate::year(ind@data$Timestamp))
+ind@data$GlobalID <- str_c('Mule_WY_', ind@data$Population, '_', ind@data$AY_ID)
+
+#crs is already longlat
+#change name to match ellen's
+data.sub <- ind
+
+#save RData file with spdf
+save(data.sub, file = "mig_data/Organized Data/Mule_WY_SweetWaterGreenMtn.RData")
+
+#clean up
+rm(ind, data.sub)
+
+##########
+###DEER###
+##########
+
+#waiting to hear back from Katey about structure of data!!
+
+ind <- readRDS('mig_data/DEERP_mig+premig_clean.rds')
+#ind$AnimalID <- ind$AID
+#ind$Timestamp <- as.POSIXct(ind, tz = 'GMT', format = '%m/%d/%Y %H')
+#ind$DOP
+#ind$Population
+#ind$AY_ID
+#ind$GlobalID
+
+

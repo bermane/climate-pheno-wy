@@ -252,7 +252,7 @@ dat_raw2$model <- as.factor(dat_raw2$model)
 myColors <- c('#4477AA', '#BBBBBB', '#228833', '#CCBB44', '#EE6677', 
               '#AA3377')
 names(myColors) <- levels(dat_raw2$model)
-colScale <- scale_color_manual(name = "Model", values = myColors, labels = c('DLC' = 'DLC (Baseline)'))
+colScale <- scale_color_manual(name = "Model", values = myColors, labels = c('DLC' = 'Baseline (2001-2018)'))
 fillScale <- scale_fill_manual(name = "Model", values = myColors)
 
 #set universal theme
@@ -343,6 +343,85 @@ dat_rcp85_herb$group <- 'ABHerb_RCP85'
 dat_rcp45_ever$group <- 'CAEvergreen_RCP45'
 dat_rcp85_ever$group <- 'CBEvergreen_RCP85'
 
+#create new df with median values and quartiles of DLC to plot as error bar
+dat_baseline <- data.frame(group = c('DAOverall_RCP45', 'DBOverall_RCP85',
+                                     'BAShrub_RCP45', 'BBShrub_RCP85',
+                                     'AAHerb_RCP45', 'ABHerb_RCP85',
+                                     'CAEvergreen_RCP45', 'CBEvergreen_RCP85'),
+                           med_line = c(median(dat_rcp45$value[dat_rcp45$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp85$value[dat_rcp85$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp45_shrub$value[dat_rcp45_shrub$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp85_shrub$value[dat_rcp85_shrub$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp45_herb$value[dat_rcp45_herb$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp85_herb$value[dat_rcp85_herb$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp45_ever$value[dat_rcp45_ever$model == 'DLC'], na.rm = T),
+                                        median(dat_rcp85_ever$value[dat_rcp85_ever$model == 'DLC'], na.rm = T)),
+                           q1 = c(quantile(dat_rcp45$value[dat_rcp45$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp85$value[dat_rcp85$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp45_shrub$value[dat_rcp45_shrub$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp85_shrub$value[dat_rcp85_shrub$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp45_herb$value[dat_rcp45_herb$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp85_herb$value[dat_rcp85_herb$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp45_ever$value[dat_rcp45_ever$model == 'DLC'], na.rm = T, probs = 0.25),
+                                  quantile(dat_rcp85_ever$value[dat_rcp85_ever$model == 'DLC'], na.rm = T, probs = 0.25)),
+                           q3 = c(quantile(dat_rcp45$value[dat_rcp45$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp85$value[dat_rcp85$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp45_shrub$value[dat_rcp45_shrub$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp85_shrub$value[dat_rcp85_shrub$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp45_herb$value[dat_rcp45_herb$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp85_herb$value[dat_rcp85_herb$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp45_ever$value[dat_rcp45_ever$model == 'DLC'], na.rm = T, probs = 0.75),
+                                  quantile(dat_rcp85_ever$value[dat_rcp85_ever$model == 'DLC'], na.rm = T, probs = 0.75)))
+
+#separate first and last category because if issues with line size
+dat_baseline2 <- dat_baseline[dat_baseline$group %in% c('AAHerb_RCP45', 'DBOverall_RCP85'),]
+dat_baseline <- dat_baseline[!(dat_baseline$group %in% c('AAHerb_RCP45', 'DBOverall_RCP85')),]
+
+#create boxplot with hlines
+
+ggplot() +
+  geom_boxplot(data = dat_rcp45_herb[dat_rcp45_herb$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp85_herb[dat_rcp85_herb$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp45_shrub[dat_rcp45_shrub$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp85_shrub[dat_rcp85_shrub$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp45_ever[dat_rcp45_ever$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp85_ever[dat_rcp85_ever$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp45[dat_rcp45$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  geom_boxplot(data = dat_rcp85[dat_rcp85$model != 'DLC',], 
+               aes(x = group, y = value, color = model), outlier.size=0.5) +
+  colScale + xlab('Landcover and Emissions Scenario') + ylab('PIRGd (DOY)') +
+  ggtitle('PIRGd Projections for Mid-Century in WY (2040-2069)') + theme_bw() + theme_e +
+  scale_y_continuous(limits = c(0, 365)) + 
+  scale_x_discrete(labels = c('AAHerb_RCP45' = 'Herb \nRCP 4.5', 'ABHerb_RCP85' = 'Herb \nRCP 8.5',
+                              'BAShrub_RCP45' = 'Shrub \nRCP 4.5', 'BBShrub_RCP85' = 'Shrub \nRCP 8.5',
+                              'CAEvergreen_RCP45' = 'Evergreen \nRCP 4.5', 'CBEvergreen_RCP85' = 'Evergreen \nRCP 8.5',
+                              'DAOverall_RCP45' = 'Overall \nRCP 4.5', 'DBOverall_RCP85' = 'Overall \nRCP 8.5')) + 
+  geom_vline(xintercept = c(2.5, 4.5, 6.5), color = 'black', size = 0.5) +
+  geom_errorbar(data = dat_baseline, width = 1, aes(x=group, ymax = med_line, ymin = med_line), 
+                colour="#000000", linetype="dashed") +
+  geom_errorbar(data = dat_baseline2, width = 1.2, aes(x=group, ymax = med_line, ymin = med_line), 
+                colour="#000000", linetype="dashed") +
+  geom_errorbar(data = dat_baseline, width = 1, aes(x=group, ymax = q1, ymin = q1), 
+                colour="#BBBBBB", linetype="dashed") +
+  geom_errorbar(data = dat_baseline2, width = 1.2, aes(x=group, ymax = q1, ymin = q1), 
+                colour="#BBBBBB", linetype="dashed") +
+  geom_errorbar(data = dat_baseline, width = 1, aes(x=group, ymax = q3, ymin = q3), 
+                colour="#BBBBBB", linetype="dashed") +
+  geom_errorbar(data = dat_baseline2, width = 1.2, aes(x=group, ymax = q3, ymin = q3), 
+                colour="#BBBBBB", linetype="dashed")
+
+ggsave('output/final_plots/pirgd_proj_combine_2040_hlines.png',
+       width = 12, height = 8, unit = "in")
+
+#create boxplot with baseline boxes
+
 ggplot() +
   geom_boxplot(data = dat_rcp45_herb, 
                aes(x = group, y = value, color = model), outlier.size=0.5) +
@@ -369,8 +448,10 @@ ggplot() +
                               'DAOverall_RCP45' = 'Overall \nRCP 4.5', 'DBOverall_RCP85' = 'Overall \nRCP 8.5')) + 
   geom_vline(xintercept = c(2.5, 4.5, 6.5), color = 'black', size = 0.5)
 
-ggsave('output/final_plots/pirgd_proj_combine_2040.png',
+ggsave('output/final_plots/pirgd_proj_combine_2040_basebox.png',
        width = 12, height = 8, unit = "in")
+
+#create tufteplot
 
 ggplot() +
   geom_tufteboxplot(data = dat_rcp45_herb, 
