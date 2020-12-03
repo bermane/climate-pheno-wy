@@ -127,11 +127,12 @@ lc_v <- getValues(lc)
 ###################################################
 
 #load list of climate data csv files
-clim_files <- list.files('wy_projections/dat', 'dat_avg',
+clim_files <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat_avg*2070*'),
                          full.names = T)
 
 #load file names only
-clim_names <- list.files('wy_projections/dat', 'dat_avg')
+clim_names <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat_avg*2070*'),
+                         full.names = F)
 
 #loop through files to generate predictions
 for(i in 1:length(clim_files)){
@@ -181,11 +182,12 @@ for(i in 1:length(clim_files)){
 #################################################
 
 #load list of daily climate data csv files
-clim_files <- list.files('wy_projections/dat', 'dat',
+clim_files <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat*2070*'),
                          full.names = T)
 
 #load file names only
-clim_names <- list.files('wy_projections/dat', 'dat')
+clim_names <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat*2070*'),
+                         full.names = F)
 
 #remove files with average data only
 clim_files <- clim_files[str_detect(clim_files, 'dat_avg') == F]
