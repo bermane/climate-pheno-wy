@@ -33,17 +33,21 @@ rcp <- c('rcp45', 'rcp85')
 #we need a dem in the climate data project to define the elevation categories
 #the thresholds from model building are: 1627 and 2281 m
 
+#now only run first model in 2020 scenario
+mods <- 'HadGEM2-ES365'
+years <- 2020
+
 
 ################################
 ###CALCULATE MONTHLY AVERAGES###
 ################################    
 
 #register parallel backend
-cl <- parallel::makeCluster(5)
+cl <- parallel::makeCluster(2)
 doParallel::registerDoParallel(cl)
 
 #loop through models (possibly in parallel?)
-foreach::foreach(m = mods) %dopar% {
+foreach::foreach(r = rcp) %dopar% {
   
   #load packages
   library(raster)
@@ -56,7 +60,7 @@ foreach::foreach(m = mods) %dopar% {
   for(yr in years){
     
     #loop through rcp scenarios
-    for(r in rcp){
+    for(m in mods){
       
       #first we need mean monthly temps
       #load daily tmin and tmax
@@ -126,11 +130,11 @@ parallel::stopCluster(cl)
 #first run rcp45 2040 complete took ~28 hours
 
 #register parallel backend
-cl <- parallel::makeCluster(5)
+cl <- parallel::makeCluster(2)
 doParallel::registerDoParallel(cl)
 
 #loop through models
-foreach::foreach(m = mods) %dopar% {
+foreach::foreach(r = rcp) %dopar% {
   
   #load packages
   library(raster)
@@ -142,11 +146,11 @@ foreach::foreach(m = mods) %dopar% {
   
   #loop through time periods
   #for(yr in years){
-  for(yr in 2070){
+  for(yr in years){
     
     #loop through rcp scenarios
     #for(r in rcp){
-    for(r in "rcp85"){
+    for(m in mods){
       
       #strip start and end year
       start_yr <- str_extract(Sys.glob(str_c('wy_projections/raw/tasmin*', m, '*', r, '*', yr, '*.tif')),
