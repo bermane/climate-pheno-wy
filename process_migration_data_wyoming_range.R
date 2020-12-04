@@ -1,5 +1,5 @@
-#this code processes raw deer migration data for varying sources
-#first sampling individuals from each herd and than
+#this code processes raw deer migration data by herd file
+#first sampling individuals and than
 #using Visvalingam’s algorithm for line simplification and resampling of specific
 #individuals at 4 km points
 #the first part is based off Ellen Aiken's R script 
@@ -257,7 +257,6 @@ for(j in 1:length(ids)){
         #checking your choices
         
         #zoom to each selection
-        
         
         #only plot if spring data exists
         if(is.na(startSpring)!=T){
@@ -531,37 +530,94 @@ save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RDat
 #until happy with the output. Then save all final sample points 
 #in a spdf together
 
+#start count
+count <- 1
+
 #loop through sample rows
-for(i in 1:NROW(m.smpl)){}
+for(i in 1:NROW(m.smpl)){
+  
+  #load segment data
+  seg <- full.df[full.df$AnimalID == m.smpl$AnimalID[i] & 
+                   full.df$Timestamp >= m.smpl$startSpring[i] & full.df$Timestamp <= m.smpl$endSpring[i], ]
+  
+  #convert to spdf
+  seg <- SpatialPointsDataFrame(coords = matrix(c(seg$x, seg$y), ncol = 2),
+                                proj4string = crs(gps.data),
+                                data = data.frame(AnimalID = seg$AnimalID,
+                                                  Timestamp = seg$Timestamp,
+                                                  Population = seg$Population,
+                                                  AY_ID = seg$AY_ID,
+                                                  GlobalID = seg$GlobalID))
+  
+  #convert to spLines
+  lines <- spLines(seg)
+  
+  #repeat
+  repeat{
+    
+    #plot
+    plot(lines)
+    
+    #choose simplification percentage
+    perc <- readline('What percentage of points to retain? ') %>% as.numeric
+    
+    #simplify migration route
+    simp <- ms_simplify(lines, keep = perc)
+    
+    #check plot
+    plot(simp, col = 'red', add = T)
+    
+    #check if line is sufficient
+    check <- readline('Re-run line simplification (Y/N)? ')
+    if(check == 'N' | check == 'n') break
+    
+  }
+  
+  #repeat
+  repeat{
+    check <- readline('Use normal sampling interval (Y/N)? ')
+    if(check == 'Y' | check == 'y'){
+      int <- round(SpatialLinesLengths(simp, longlat = T)/5) + 1
+    } else int <- readline('Specify numeric sampling interval: ')
+    #sample points along line at 5 km intervals. include start and finish
+    sample <- spsample(simp, int, type = 'regular')
+    
+    #plot
+    plot(sample, add = T, cex =2, pch = 1)
+    
+    check <- readline('Re-run sampling (Y/N)? ')
+    if(check == 'N' | check == 'n') break
+  }
+  
+  #if first iteration
+  #save samples in spdf
+  if(count == 1){
+    samples <- SpatialPointsDataFrame(coords = sample@coords,
+                                      proj4string = crs(gps.data),
+                                      data = data.frame(AnimalID = seg$AnimalID[1],
+                                                        SampleID = 1:length(sample),
+                                                        Population = as.character(seg$Population[1]),
+                                                        AY_ID = as.character(seg$AY_ID[1]),
+                                                        GlobalID = as.character(seg$GlobalID[1]),
+                                                        SamplePerc = perc))
+    
+    #up counter
+    count <- count + 1
+    
+  } else{ #rbind if not first iteration
+    samples <- rbind(samples, 
+                     SpatialPointsDataFrame(coords = sample@coords,
+                                            proj4string = crs(gps.data),
+                                            data = data.frame(AnimalID = seg$AnimalID[1],
+                                                              SampleID = 1:length(sample),
+                                                              Population = as.character(seg$Population[1]),
+                                                              AY_ID = as.character(seg$AY_ID[1]),
+                                                              GlobalID = as.character(seg$GlobalID[1]),
+                                                              SamplePerc = perc)))
+    
+  }
+}
 
-#load segment data
-seg <- full.df[full.df$AnimalID == m.smpl$AnimalID[i] & 
-                 full.df$Timestamp >= m.smpl$startSpring[i] & full.df$Timestamp <= m.smpl$endSpring[i], ]
-
-#convert to spdf
-seg <- SpatialPointsDataFrame(coords = matrix(c(seg$x, seg$y), ncol = 2),
-                       proj4string = crs(gps.data),
-                       data = data.frame(AnimalID = seg$AnimalID,
-                                         Timestamp = seg$Timestamp,
-                                         Population = seg$Population,
-                                         AY_ID = seg$AY_ID,
-                                         GlobalID = seg$GlobalID))
-
-#convert to spLines
-lines <- spLines(seg)
-
-#plot
-plot(lines)
-
-#simplify migration route
-simp <- ms_simplify(lines, keep = 0.05)
-
-#check plot
-plot(simp, col = 'red', add = T)
-
-#sample points along line at 5 km intervals. include start and finish
-sample <- spsample(simp, round(SpatialLinesLengths(simp, longlat = T)/5) + 1, type = 'regular')
-
-#plot
-plot(sample, add = T, cex =2, pch = 1)
+#output file of migration samples
+save(samples, file = ('mig_data/processed/mig_samples_wyoming_range.RData'))
 
