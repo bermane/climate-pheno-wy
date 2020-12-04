@@ -426,12 +426,31 @@ rm(ind, data.sub)
 
 #waiting to hear back from Katey about structure of data!!
 
-ind <- readRDS('mig_data/DEERP_mig+premig_clean.rds')
-#ind$AnimalID <- ind$AID
-#ind$Timestamp <- as.POSIXct(ind, tz = 'GMT', format = '%m/%d/%Y %H')
+ind <- readRDS('mig_data/DEERP_MD_migseq.rds')
+ind$AnimalID <- ind$AID
+ind$Timestamp <- ind$TelemDate %>% as.character %>% as.POSIXct(tz = 'GMT', format = '%Y-%m-%d %H:%M:%OS')
 #ind$DOP
-#ind$Population
-#ind$AY_ID
-#ind$GlobalID
+ind$Population <- 'DEERP'
+ind$AY_ID <- str_c(ind$AnimalID,
+                   '_', lubridate::year(ind$Timestamp))
+ind$GlobalID <- str_c('Mule_WY_', ind$Population, '_', ind$AY_ID)
+
+#create spdf
+dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$lon, ind$lat), ncol = 2),
+                                   proj4string = crs(dat_ref),
+                                   data = data.frame(AnimalID = ind$AnimalID,
+                                                     Timestamp = ind$Timestamp,
+                                                     Population = ind$Population,
+                                                     AY_ID = ind$AY_ID,
+                                                     GlobalID = ind$GlobalID))
+
+#change name to match ellen's
+data.sub <- ind
+
+#save RData file with spdf
+save(data.sub, file = "mig_data/Organized Data/Mule_WY_DEERP.RData")
+
+#clean up
+rm(ind, data.sub, dat_spdf)
 
 
