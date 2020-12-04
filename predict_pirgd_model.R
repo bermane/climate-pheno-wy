@@ -127,11 +127,11 @@ lc_v <- getValues(lc)
 ###################################################
 
 #load list of climate data csv files
-clim_files <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat_avg*2070*'),
+clim_files <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat_avg*2020*'),
                          full.names = T)
 
 #load file names only
-clim_names <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat_avg*2070*'),
+clim_names <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat_avg*2020*'),
                          full.names = F)
 
 #loop through files to generate predictions
@@ -182,11 +182,11 @@ for(i in 1:length(clim_files)){
 #################################################
 
 #load list of daily climate data csv files
-clim_files <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat*2070*'),
+clim_files <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat*2020*'),
                          full.names = T)
 
 #load file names only
-clim_names <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat*2070*'),
+clim_names <- list.files(path = 'wy_projections/dat', pattern = glob2rx('dat*2020*'),
                          full.names = F)
 
 #remove files with average data only
@@ -194,7 +194,7 @@ clim_files <- clim_files[str_detect(clim_files, 'dat_avg') == F]
 clim_names <- clim_names[str_detect(clim_names, 'dat_avg') == F]
 
 #register parallel backend
-cl <- parallel::makeCluster(5)
+cl <- parallel::makeCluster(2)
 doParallel::registerDoParallel(cl)
 
 #loop through files to generate predictions
