@@ -34,8 +34,8 @@ rcp <- c('rcp45', 'rcp85')
 #the thresholds from model building are: 1627 and 2281 m
 
 #now only run first model in 2020 scenario
-mods <- 'HadGEM2-ES365'
-years <- 2020
+#mods <- 'HadGEM2-ES365'
+#years <- 2020
 
 
 ################################
@@ -112,10 +112,6 @@ foreach::foreach(r = rcp) %dopar% {
 #stop parallel cluster
 parallel::stopCluster(cl)
 
-#######################################################################
-###still need to run first part with middle model data starting 2020###
-#######################################################################
-
 ######################################
 ###CALCULATE ANNUAL MODEL VARIABLES###
 ######################################  
@@ -144,7 +140,7 @@ foreach::foreach(r = rcp) %dopar% {
   library(SPEI)
   library(scPDSI)
   
-  #loop through time periods
+  #don't loop through time periods anymore. put them together
   #for(yr in years){
   for(yr in years){
     
