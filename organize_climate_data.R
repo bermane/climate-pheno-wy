@@ -33,11 +33,6 @@ rcp <- c('rcp45', 'rcp85')
 #we need a dem in the climate data project to define the elevation categories
 #the thresholds from model building are: 1627 and 2281 m
 
-#now only run first model in 2020 scenario
-#mods <- 'HadGEM2-ES365'
-#years <- 2020
-
-
 ################################
 ###CALCULATE MONTHLY AVERAGES###
 ################################    
