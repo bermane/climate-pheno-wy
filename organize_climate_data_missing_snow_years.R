@@ -25,7 +25,7 @@ mods <- c('MIROC-ESM-CHEM', 'IPSL-CM5A-MR', 'CNRM-CM5', 'inmcm4', 'HadGEM2-ES365
 params <- c('tasmax', 'tasmin', 'pr')
 
 #year periods we downloaded (start year only). There is a third year period for middle scenario
-years <- c(2040, 2070)
+years <- c(2038, 2068)
 
 #scenario periods we downloaded
 rcp <- c('rcp45', 'rcp85')
@@ -33,24 +33,20 @@ rcp <- c('rcp45', 'rcp85')
 #we need a dem in the climate data project to define the elevation categories
 #the thresholds from model building are: 1627 and 2281 m
 
-#years 1999 and 2020 for the middle scenario
-#mods <- 'HadGEM2-ES365'
-#years <- 1999
-
-#years 1999 for the extreme scenario
-mods <- 'MIROC-ESM-CHEM'
-years <- 1999
+#years 2018 for the middle model
+# mods <- 'HadGEM2-ES365'
+# years <- 2018
 
 ################################
 ###CALCULATE MONTHLY AVERAGES###
 ################################    
 
 #register parallel backend
-cl <- parallel::makeCluster(2)
+cl <- parallel::makeCluster(5)
 doParallel::registerDoParallel(cl)
 
 #loop through models (possibly in parallel?)
-foreach::foreach(r = rcp) %dopar% {
+foreach::foreach(m = mods) %dopar% {
   
   #load packages
   library(raster)
@@ -63,7 +59,7 @@ foreach::foreach(r = rcp) %dopar% {
   for(yr in years){
     
     #loop through rcp scenarios
-    for(m in mods){
+    for(r in rcp){
       
       #first we need mean monthly temps
       #load daily tmin and tmax
@@ -129,11 +125,11 @@ parallel::stopCluster(cl)
 #first run rcp45 2040 complete took ~28 hours
 
 #register parallel backend
-cl <- parallel::makeCluster(2)
+cl <- parallel::makeCluster(5)
 doParallel::registerDoParallel(cl)
 
 #loop through models
-foreach::foreach(r = rcp) %dopar% {
+foreach::foreach(m = mods) %dopar% {
   
   #load packages
   library(raster)
@@ -149,7 +145,7 @@ foreach::foreach(r = rcp) %dopar% {
     
     #loop through rcp scenarios
     #for(r in rcp){
-    for(m in mods){
+    for(r in rcp){
       
       #strip start and end year
       start_yr <- str_extract(Sys.glob(str_c('wy_projections/raw/tasmin*', m, '*', r, '*', yr, '*.tif')),
@@ -336,119 +332,119 @@ foreach::foreach(r = rcp) %dopar% {
 #stop parallel cluster
 parallel::stopCluster(cl)
 
-##############################################################
-###CALCULATE MISSING YEARS OF SNOW DATA FOR MIDDLE SCENARIO###
-##############################################################
-
-#only run for middle scenario, two rcps
-m <- 'HadGEM2-ES365'
-#r <- 'rcp45'
-r <- 'rcp85'
-
-#calculate snow_oct_apr for missing years
-#2020, 2040, 2070
-
-#create vector of dates to use to extract data
-#create time series of years, months, days
-ts_1999 <- seq(mdy(str_c('01-01-', 1999)), mdy(str_c('12-31-', 2019)), by = "day") %>%
-  format(., format = '%Y%m%d')
-
-ts_2020 <- seq(mdy(str_c('01-01-', 2020)), mdy(str_c('12-31-', 2039)), by = "day") %>%
-  format(., format = '%Y%m%d')
-
-ts_2040 <- seq(mdy(str_c('01-01-', 2040)), mdy(str_c('12-31-', 2069)), by = "day") %>%
-  format(., format = '%Y%m%d')
-
-ts_2070 <- seq(mdy(str_c('01-01-', 2070)), mdy(str_c('12-31-', 2099)), by = "day") %>%
-  format(., format = '%Y%m%d')
-
-#create index of the bands we want for each year combo
-index_1999 <- which(str_detect(ts_1999, str_c(2019, "10|", 2019, "11|", 2019, "12")))
-
-index_2020_1 <- which(str_detect(ts_2020, str_c(2020, "01|", 2020, "02|", 2020, "03|", 2020, "04|", 2020, "05")))
-
-index_2020_2 <- which(str_detect(ts_2020, str_c(2039, "10|", 2039, "11|", 2039, "12")))
-
-index_2040_1 <- which(str_detect(ts_2040, str_c(2040, "01|", 2040, "02|", 2040, "03|", 2040, "04|", 2040, "05")))
-
-index_2040_2 <- which(str_detect(ts_2040, str_c(2069, "10|", 2069, "11|", 2069, "12")))
-
-index_2070 <- which(str_detect(ts_2070, str_c(2070, "01|", 2070, "02|", 2070, "03|", 2070, "04|", 2070, "05")))
-
-#load daily max temp and prcp for the days we want
-tmax_2020 <- stack(stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*1999*.tif')), bands = index_1999),
-                   stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2020*.tif')), bands = index_2020_1)) %>%
-  getValues
-
-pr_2020 <- stack(stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*1999*.tif')), bands = index_1999),
-                 stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2020*.tif')), bands = index_2020_1)) %>%
-  getValues
-
-tmax_2040 <- stack(stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2020*.tif')), bands = index_2020_2),
-                   stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2040*.tif')), bands = index_2040_1)) %>%
-  getValues
-
-pr_2040 <- stack(stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2020*.tif')), bands = index_2020_2),
-                 stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2040*.tif')), bands = index_2040_1)) %>%
-  getValues
-
-tmax_2070 <- stack(stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2040*.tif')), bands = index_2040_2),
-                   stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2070*.tif')), bands = index_2070)) %>%
-  getValues
-
-pr_2070 <- stack(stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2040*.tif')), bands = index_2040_2),
-                 stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2070*.tif')), bands = index_2070)) %>%
-  getValues
-
-#set temp to degree C
-tmax_2020 <- tmax_2020 - 273.15
-tmax_2040 <- tmax_2040 - 273.15
-tmax_2070 <- tmax_2070 - 273.15
-
-#load elevation layer
-dem <- raster('dem/srtm/dem_wy_maca_proj.tif')
-
-#extract and remove raster
-dem <- raster::getValues(dem) %>% round(2)
-
-#also need to calculate tmax thresholds to separate rain and snow using 
-#linear regression of tmax vs. elevation best across all ecoregions
-#from Rajagopal and Harpold (2016)
-tmax_thresh <- 3.469 - (1.667*(dem/1000))
-
-#allocate columns for rain and gdd
-#dat$rain <- NA
-#dat$snow <- NA
-#dat$gdd <- NA
-
-#need to remove may from time series since over calculated
-pr_2020 <- pr_2020[,1:(ncol(pr_2020)-31)]
-pr_2040 <- pr_2040[,1:(ncol(pr_2040)-31)]
-pr_2070 <- pr_2070[,1:(ncol(pr_2070)-31)]
-tmax_2020 <- tmax_2020[,1:(ncol(tmax_2020)-31)]
-tmax_2040 <- tmax_2040[,1:(ncol(tmax_2040)-31)]
-tmax_2070 <- tmax_2070[,1:(ncol(tmax_2070)-31)]
-
-#calc snow from oct-apr
-snow_2020 <- pr_2020
-snow_2020[tmax_2020 > tmax_thresh] <- 0
-snow_2040 <- pr_2040
-snow_2040[tmax_2040 > tmax_thresh] <- 0
-snow_2070 <- pr_2070
-snow_2070[tmax_2070 > tmax_thresh] <- 0
-
-#input into dat
-dat_2020 <- data.frame(snow = rowSums(snow_2020), year = 2020)
-dat_2040 <- data.frame(snow = rowSums(snow_2040), year = 2040)
-dat_2070 <- data.frame(snow = rowSums(snow_2070), year = 2070)
-
-#write csv
-write.csv(dat_2020, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2020, '_snow.csv'),
-          row.names = F)
-write.csv(dat_2040, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2040, '_snow.csv'),
-          row.names = F)
-write.csv(dat_2070, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2070, '_snow.csv'),
-          row.names = F)
+# ##############################################################
+# ###CALCULATE MISSING YEARS OF SNOW DATA FOR MIDDLE SCENARIO###
+# ##############################################################
+# 
+# #only run for middle scenario, two rcps
+# m <- 'HadGEM2-ES365'
+# #r <- 'rcp45'
+# r <- 'rcp85'
+# 
+# #calculate snow_oct_apr for missing years
+# #2020, 2040, 2070
+# 
+# #create vector of dates to use to extract data
+# #create time series of years, months, days
+# ts_1999 <- seq(mdy(str_c('01-01-', 1999)), mdy(str_c('12-31-', 2019)), by = "day") %>%
+#   format(., format = '%Y%m%d')
+# 
+# ts_2020 <- seq(mdy(str_c('01-01-', 2020)), mdy(str_c('12-31-', 2039)), by = "day") %>%
+#   format(., format = '%Y%m%d')
+# 
+# ts_2040 <- seq(mdy(str_c('01-01-', 2040)), mdy(str_c('12-31-', 2069)), by = "day") %>%
+#   format(., format = '%Y%m%d')
+# 
+# ts_2070 <- seq(mdy(str_c('01-01-', 2070)), mdy(str_c('12-31-', 2099)), by = "day") %>%
+#   format(., format = '%Y%m%d')
+# 
+# #create index of the bands we want for each year combo
+# index_1999 <- which(str_detect(ts_1999, str_c(2019, "10|", 2019, "11|", 2019, "12")))
+# 
+# index_2020_1 <- which(str_detect(ts_2020, str_c(2020, "01|", 2020, "02|", 2020, "03|", 2020, "04|", 2020, "05")))
+# 
+# index_2020_2 <- which(str_detect(ts_2020, str_c(2039, "10|", 2039, "11|", 2039, "12")))
+# 
+# index_2040_1 <- which(str_detect(ts_2040, str_c(2040, "01|", 2040, "02|", 2040, "03|", 2040, "04|", 2040, "05")))
+# 
+# index_2040_2 <- which(str_detect(ts_2040, str_c(2069, "10|", 2069, "11|", 2069, "12")))
+# 
+# index_2070 <- which(str_detect(ts_2070, str_c(2070, "01|", 2070, "02|", 2070, "03|", 2070, "04|", 2070, "05")))
+# 
+# #load daily max temp and prcp for the days we want
+# tmax_2020 <- stack(stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*1999*.tif')), bands = index_1999),
+#                    stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2020*.tif')), bands = index_2020_1)) %>%
+#   getValues
+# 
+# pr_2020 <- stack(stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*1999*.tif')), bands = index_1999),
+#                  stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2020*.tif')), bands = index_2020_1)) %>%
+#   getValues
+# 
+# tmax_2040 <- stack(stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2020*.tif')), bands = index_2020_2),
+#                    stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2040*.tif')), bands = index_2040_1)) %>%
+#   getValues
+# 
+# pr_2040 <- stack(stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2020*.tif')), bands = index_2020_2),
+#                  stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2040*.tif')), bands = index_2040_1)) %>%
+#   getValues
+# 
+# tmax_2070 <- stack(stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2040*.tif')), bands = index_2040_2),
+#                    stack(Sys.glob(str_c('wy_projections/raw/tasmax*', m, '*', r, '*2070*.tif')), bands = index_2070)) %>%
+#   getValues
+# 
+# pr_2070 <- stack(stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2040*.tif')), bands = index_2040_2),
+#                  stack(Sys.glob(str_c('wy_projections/raw/pr*', m, '*', r, '*2070*.tif')), bands = index_2070)) %>%
+#   getValues
+# 
+# #set temp to degree C
+# tmax_2020 <- tmax_2020 - 273.15
+# tmax_2040 <- tmax_2040 - 273.15
+# tmax_2070 <- tmax_2070 - 273.15
+# 
+# #load elevation layer
+# dem <- raster('dem/srtm/dem_wy_maca_proj.tif')
+# 
+# #extract and remove raster
+# dem <- raster::getValues(dem) %>% round(2)
+# 
+# #also need to calculate tmax thresholds to separate rain and snow using 
+# #linear regression of tmax vs. elevation best across all ecoregions
+# #from Rajagopal and Harpold (2016)
+# tmax_thresh <- 3.469 - (1.667*(dem/1000))
+# 
+# #allocate columns for rain and gdd
+# #dat$rain <- NA
+# #dat$snow <- NA
+# #dat$gdd <- NA
+# 
+# #need to remove may from time series since over calculated
+# pr_2020 <- pr_2020[,1:(ncol(pr_2020)-31)]
+# pr_2040 <- pr_2040[,1:(ncol(pr_2040)-31)]
+# pr_2070 <- pr_2070[,1:(ncol(pr_2070)-31)]
+# tmax_2020 <- tmax_2020[,1:(ncol(tmax_2020)-31)]
+# tmax_2040 <- tmax_2040[,1:(ncol(tmax_2040)-31)]
+# tmax_2070 <- tmax_2070[,1:(ncol(tmax_2070)-31)]
+# 
+# #calc snow from oct-apr
+# snow_2020 <- pr_2020
+# snow_2020[tmax_2020 > tmax_thresh] <- 0
+# snow_2040 <- pr_2040
+# snow_2040[tmax_2040 > tmax_thresh] <- 0
+# snow_2070 <- pr_2070
+# snow_2070[tmax_2070 > tmax_thresh] <- 0
+# 
+# #input into dat
+# dat_2020 <- data.frame(snow = rowSums(snow_2020), year = 2020)
+# dat_2040 <- data.frame(snow = rowSums(snow_2040), year = 2040)
+# dat_2070 <- data.frame(snow = rowSums(snow_2070), year = 2070)
+# 
+# #write csv
+# write.csv(dat_2020, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2020, '_snow.csv'),
+#           row.names = F)
+# write.csv(dat_2040, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2040, '_snow.csv'),
+#           row.names = F)
+# write.csv(dat_2070, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2070, '_snow.csv'),
+#           row.names = F)
 
 ##########################################
 ###CALCULATE VPD FOR SPRING SCALE MODEL###
@@ -465,11 +461,11 @@ write.csv(dat_2070, file = str_c('wy_projections/dat/dat_', m, '_', r, '_', 2070
 #mods <- mods[!(mods %in% 'HadGEM2-ES365')]
 
 #register parallel backend
-cl <- parallel::makeCluster(2)
+cl <- parallel::makeCluster(5)
 doParallel::registerDoParallel(cl)
 
 #loop through models
-foreach::foreach(r = rcp) %dopar% {
+foreach::foreach(m = mods) %dopar% {
   
   #load packages
   library(raster)
@@ -479,7 +475,7 @@ foreach::foreach(r = rcp) %dopar% {
   library(SPEI)
   library(scPDSI)
   
-  for(m in mods){
+  for(r in rcp){
     for(yr in years){
       
       #strip start and end year
