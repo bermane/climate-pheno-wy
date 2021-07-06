@@ -53,11 +53,12 @@ nsd <-function(x, y){
   return(msd)
 }
 
-#load wyoming range data
-load('mig_data/Organized Data/Mule_WY_WyomingRange_cleaned.RData')
+#load sweetwater greenmtn data
+load('mig_data/Organized Data/Mule_WY_SweetWaterGreenMtn.RData')
 
 #change loaded data name to gps.data if necessary
-#gps.data <- sub.data
+gps.data <- data.sub
+rm(data.sub)
 
 #load as df
 gps_df <- gps.data@data
@@ -66,7 +67,8 @@ gps_df <- gps.data@data
 gps_df <- cbind(gps_df, data.frame(x = gps.data@coords[,1], y = gps.data@coords[,2]))
 
 #change date to POSIXct object if necessary
-gps_df$Timestamp <- as.POSIXct(gps_df$Timestamp, tz = 'GMT')
+str(gps_df$Timestamp)
+#gps_df$Timestamp <- as.POSIXct(gps_df$Timestamp, tz = 'GMT')
 
 #load unique animal ids
 ids <- unique(gps_df$AnimalID)
@@ -347,7 +349,7 @@ for(j in 1:length(ids)){
           fall <-fall[numericT >= startF.d,]
         }
         else{
-          fall <-d.y[numericT >= startF.d,]
+          #fall <-d.y[numericT >= startF.d,]
         }
         
         
@@ -429,7 +431,7 @@ for(j in 1:length(ids)){
 m.dates  
 
 #save image of initial m.dates output to make sure don't lose it!
-#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/segment selection/mig_segment_selection_wyoming_range.RData')
+#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/segment selection/mig_segment_selection_sweetwater_greenmtn.RData')
 
 #remove rows with missing spring start and end
 m.dates <- m.dates[is.na(m.dates$startSpring) == F,]
@@ -463,7 +465,8 @@ m.dates <- m.dates[m.dates$migDist > 15,]
 m.smpl <- m.dates %>% group_by(AnimalID) %>% sample_n(1)
 
 #next sample 15 individuals
-m.smpl <- m.smpl %>% ungroup %>% sample_n(15)
+#m.smpl <- m.smpl %>% ungroup %>% sample_n(15)
+#there are only 14 so move forward with that!
 
 #create spdf of start and end points to use for duration metrics
 #lopo through each row to get start and end
@@ -518,7 +521,7 @@ for(i in 1:NROW(m.smpl)){
 }
 
 #output file of start and end dates
-save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RData'))
+#save(mig_start_end, file = ('mig_data/processed/seg_start_end_sweetwater_greenmtn.RData'))
 
 
 #########################
@@ -532,6 +535,9 @@ save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RDat
 
 #start count
 count <- 1
+
+#change back to single plot
+par(mfrow=c(1,1))
 
 #loop through sample rows
 for(i in 1:NROW(m.smpl)){
@@ -619,5 +625,5 @@ for(i in 1:NROW(m.smpl)){
 }
 
 #output file of migration samples
-save(samples, file = ('mig_data/processed/mig_samples_wyoming_range.RData'))
+#save(samples, file = ('mig_data/processed/mig_samples_sweetwater_greenmtn.RData'))
 

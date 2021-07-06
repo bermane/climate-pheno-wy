@@ -16,6 +16,7 @@ library(adehabitatLT)
 library(sf)
 library(lubridate)
 library(swaRm)
+library(berryFunctions)
 
 #set wd
 setwd('/Volumes/SSD/climate_effects')
@@ -53,11 +54,12 @@ nsd <-function(x, y){
   return(msd)
 }
 
-#load wyoming range data
-load('mig_data/Organized Data/Mule_WY_WyomingRange_cleaned.RData')
+#load chokecherry data
+load('mig_data/Organized Data/Mule_WY_Chokecherry_cleaned.RData')
 
 #change loaded data name to gps.data if necessary
-#gps.data <- sub.data
+gps.data <- data.sub
+rm(data.sub)
 
 #load as df
 gps_df <- gps.data@data
@@ -66,7 +68,8 @@ gps_df <- gps.data@data
 gps_df <- cbind(gps_df, data.frame(x = gps.data@coords[,1], y = gps.data@coords[,2]))
 
 #change date to POSIXct object if necessary
-gps_df$Timestamp <- as.POSIXct(gps_df$Timestamp, tz = 'GMT')
+str(gps_df$Timestamp)
+#gps_df$Timestamp <- as.POSIXct(gps_df$Timestamp, tz = 'GMT')
 
 #load unique animal ids
 ids <- unique(gps_df$AnimalID)
@@ -347,7 +350,7 @@ for(j in 1:length(ids)){
           fall <-fall[numericT >= startF.d,]
         }
         else{
-          fall <-d.y[numericT >= startF.d,]
+          #fall <-d.y[numericT >= startF.d,]
         }
         
         
@@ -429,7 +432,7 @@ for(j in 1:length(ids)){
 m.dates  
 
 #save image of initial m.dates output to make sure don't lose it!
-#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/segment selection/mig_segment_selection_wyoming_range.RData')
+#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/segment selection/mig_segment_selection_chokecherry.RData')
 
 #remove rows with missing spring start and end
 m.dates <- m.dates[is.na(m.dates$startSpring) == F,]
@@ -445,15 +448,25 @@ m.dates$migDist <- as.numeric(NA)
 for(i in 1:NROW(m.dates)){
   
   #create points object of start and end
-  start_end <- st_sfc(st_point(as.numeric(full.df[full.df$AnimalID == m.dates$AnimalID[i] & 
-                                                    full.df$Timestamp == m.dates$startSpring[i], c('x', 'y')])),
-                      st_point(as.numeric(full.df[full.df$AnimalID == m.dates$AnimalID[i] & 
-                                                    full.df$Timestamp == m.dates$endSpring[i], c('x', 'y')])),
-                      crs = as.character(crs(gps.data)))
+  if(is.error(start_end <- st_sfc(st_point(as.numeric(full.df[full.df$AnimalID == m.dates$AnimalID[i] & 
+                                                              full.df$Timestamp == m.dates$startSpring[i], c('x', 'y')])),
+                                  st_point(as.numeric(full.df[full.df$AnimalID == m.dates$AnimalID[i] & 
+                                                              full.df$Timestamp == m.dates$endSpring[i], c('x', 'y')])),
+                                  crs = as.character(crs(gps.data)))) == F){
+    start_end <- st_sfc(st_point(as.numeric(full.df[full.df$AnimalID == m.dates$AnimalID[i] & 
+                                                      full.df$Timestamp == m.dates$startSpring[i], c('x', 'y')])),
+                        st_point(as.numeric(full.df[full.df$AnimalID == m.dates$AnimalID[i] & 
+                                                      full.df$Timestamp == m.dates$endSpring[i], c('x', 'y')])),
+                        crs = as.character(crs(gps.data)))
+    
+    #calculate distance between first and last point and output as km
+    m.dates$migDist[i] <- (st_distance(start_end)/1000)[1,2] %>% as.numeric
+  }
   
-  #calculate distance between first and last point and output as km
-  m.dates$migDist[i] <- (st_distance(start_end)/1000)[1,2] %>% as.numeric
 }
+
+#remove NA values
+m.dates <- na.omit(m.dates)
 
 #check df for distances and use 15 km cut off if possible
 m.dates <- m.dates[m.dates$migDist > 15,]
@@ -518,7 +531,7 @@ for(i in 1:NROW(m.smpl)){
 }
 
 #output file of start and end dates
-save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RData'))
+#save(mig_start_end, file = ('mig_data/processed/seg_start_end_chokecherry.RData'))
 
 
 #########################
@@ -532,6 +545,9 @@ save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RDat
 
 #start count
 count <- 1
+
+#change back to single plot
+par(mfrow=c(1,1))
 
 #loop through sample rows
 for(i in 1:NROW(m.smpl)){
@@ -619,5 +635,5 @@ for(i in 1:NROW(m.smpl)){
 }
 
 #output file of migration samples
-save(samples, file = ('mig_data/processed/mig_samples_wyoming_range.RData'))
+#save(samples, file = ('mig_data/processed/mig_samples_chokecherry.RData'))
 

@@ -453,4 +453,108 @@ save(data.sub, file = "mig_data/Organized Data/Mule_WY_DEERP.RData")
 #clean up
 rm(ind, data.sub, dat_spdf)
 
+###########
+###TETON###
+###########
+
+#load two csv files. merge iridium (csv2) into hard download (csv1) 
+csv1 <- read.csv('mig_data/GrandTeton MDe data20201218094644/AllMDe_HardDownload_clean_GRTE_WYOnly.csv', header = T)
+csv2 <- read.csv('mig_data/GrandTeton MDe data20201218094644/All_MDe_Iridium_GRTE_WYOnly.csv', header = T)
+
+#set timeshape as POSIXct
+csv1$DateTime <- as.POSIXct(csv1$DateTime, tz = 'GMT', format = '%m/%d/%Y %H:%M')
+csv2$DateTime <- as.POSIXct(csv2$DateTime, tz = 'GMT', format = '%m/%d/%Y %H:%M')
+
+#remove elevation column from csv1 and status column from csv2 so dfs match
+csv1 <- csv1[,!(colnames(csv1) %in% 'Elevation')]
+csv2 <- csv2[,!(colnames(csv2) %in% 'Status')]
+
+#check overlap between csv files
+id_check <- csv2$LabID %in% csv1$LabID
+dt_check <- csv2$DateTime %in% csv1$DateTime
+row_check <- id_check & dt_check
+
+#rbind data from csv2 to csv1 when match is false
+csv1 <- rbind(csv1, csv2[row_check == F,])
+
+#create count
+count <- 1
+
+#create vector of unique ids
+ids <- unique(csv1$LabID)
+
+#loop through all individuals
+for(i in 1:length(ids)){
+  
+  #load data from id
+  ind <- csv1[csv1$LabID == ids[i],]
+  
+  #sort by datetime
+  ind <- dplyr::arrange(ind, DateTime)
+  
+  #create id column
+  ind$AnimalID <- ids[i] %>% str_replace(., 'GT', '') %>% as.integer
+  
+  #create timestamp
+  ind$Timestamp <- ind$DateTime
+  
+  #create DOP
+  ind$DOP <- NA
+  
+  #create population label
+  ind$Population <- 'Teton'
+  
+  #create animal year id
+  ind$AY_ID <- str_c(ind$AnimalID,
+                     '_', lubridate::year(ind$Timestamp))
+  
+  #create global id
+  ind$GlobalID <- str_c('Mule_WY_', ind$Population, '_', ind$AY_ID)
+  
+  #check for problems with longitude
+  
+  #create spdf if i = 1 otherwise bind spdf
+  if(count == 1){
+    
+    #create spdf
+    dat_spdf <- SpatialPointsDataFrame(coords = matrix(c(ind$Longitude, ind$Latitude), ncol = 2),
+                                       proj4string = crs(dat_ref),
+                                       data = data.frame(AnimalID = ind$AnimalID,
+                                                         Timestamp = ind$Timestamp,
+                                                         DOP = ind$DOP,
+                                                         Population = ind$Population,
+                                                         AY_ID = ind$AY_ID,
+                                                         GlobalID = ind$GlobalID))
+    #add to count
+    count <- count + 1
+  }else{
+    dat_spdf <- rbind(dat_spdf,
+                      SpatialPointsDataFrame(coords = matrix(c(ind$Longitude, ind$Latitude), ncol = 2),
+                                             proj4string = crs(dat_ref),
+                                             data = data.frame(AnimalID = ind$AnimalID,
+                                                               Timestamp = ind$Timestamp,
+                                                               DOP = ind$DOP,
+                                                               Population = ind$Population,
+                                                               AY_ID = ind$AY_ID,
+                                                               GlobalID = ind$GlobalID)))  
+    
+  }
+}
+
+#check plot in WY
+plot(wy)
+plot(dat_spdf, add = T)
+
+#check data frame
+dat <- dat_spdf@data
+
+#change name to match ellen's
+data.sub <- dat_spdf
+
+#save RData file with spdf
+save(data.sub, file = "mig_data/Organized Data/Mule_WY_Teton.RData")
+
+#clean up
+rm(dat, dat_spdf, data.sub, ind, i, count)
+
 

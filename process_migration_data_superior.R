@@ -53,11 +53,12 @@ nsd <-function(x, y){
   return(msd)
 }
 
-#load wyoming range data
-load('mig_data/Organized Data/Mule_WY_WyomingRange_cleaned.RData')
+#load superior data
+load('mig_data/Organized Data/Mule_WY_Superior_cleaned.RData')
 
 #change loaded data name to gps.data if necessary
-#gps.data <- sub.data
+#gps.data <- data.sub
+#rm(data.sub)
 
 #load as df
 gps_df <- gps.data@data
@@ -66,6 +67,7 @@ gps_df <- gps.data@data
 gps_df <- cbind(gps_df, data.frame(x = gps.data@coords[,1], y = gps.data@coords[,2]))
 
 #change date to POSIXct object if necessary
+str(gps_df$Timestamp)
 gps_df$Timestamp <- as.POSIXct(gps_df$Timestamp, tz = 'GMT')
 
 #load unique animal ids
@@ -347,7 +349,7 @@ for(j in 1:length(ids)){
           fall <-fall[numericT >= startF.d,]
         }
         else{
-          fall <-d.y[numericT >= startF.d,]
+          #fall <-d.y[numericT >= startF.d,]
         }
         
         
@@ -429,7 +431,7 @@ for(j in 1:length(ids)){
 m.dates  
 
 #save image of initial m.dates output to make sure don't lose it!
-#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/segment selection/mig_segment_selection_wyoming_range.RData')
+#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/segment selection/mig_segment_selection_superior.RData')
 
 #remove rows with missing spring start and end
 m.dates <- m.dates[is.na(m.dates$startSpring) == F,]
@@ -518,7 +520,7 @@ for(i in 1:NROW(m.smpl)){
 }
 
 #output file of start and end dates
-save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RData'))
+#save(mig_start_end, file = ('mig_data/processed/seg_start_end_superior.RData'))
 
 
 #########################
@@ -532,6 +534,9 @@ save(mig_start_end, file = ('mig_data/processed/seg_start_end_wyoming_range.RDat
 
 #start count
 count <- 1
+
+#change back to single plot
+par(mfrow=c(1,1))
 
 #loop through sample rows
 for(i in 1:NROW(m.smpl)){
@@ -619,5 +624,5 @@ for(i in 1:NROW(m.smpl)){
 }
 
 #output file of migration samples
-save(samples, file = ('mig_data/processed/mig_samples_wyoming_range.RData'))
+#save(samples, file = ('mig_data/processed/mig_samples_superior.RData'))
 
