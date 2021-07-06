@@ -16,65 +16,67 @@ library(Rmisc)
 setwd('/Volumes/SSD/climate_effects')
 
 #set parallel env
-#getDoParWorkers()
-#registerDoParallel(cores = 8)
-#getDoParWorkers()
+getDoParWorkers()
+registerDoParallel(cores = 8)
+getDoParWorkers()
 
 #load image
-load(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/semivario.RData')
+load(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/semivario_sampling_grid.RData')
 
 #set seed for random sampling
 set.seed(3)
 
 ###LOAD DATA###
 #load dlc data
-#pirgd <- stack('dlc/maxIRGdate_wy_laea_2000_2019.tif')
+pirgd <- stack('dlc/maxIRGdate_wy_laea_2000_2019.tif')
 
 #subset from 2001-2018
-#pirgd <- pirgd[[2:19]]
+pirgd <- pirgd[[2:19]]
+
+#load sampling grid
+grid <- readOGR('/Volumes/SSD/climate_effects/reference/sampling_points_three_equal_classes.shp')
+
+#extract cell numbers
+cells <- raster::extract(pirgd[[1]], grid, cellnumbers = T)
+cells <- cells[,1]
 
 #test running different variogram sizes on an individual year
 #r <- pirgd[[1]]
 #r_var_20 <- usdm::Variogram(r, cutoff = 20000, size = 100)
 #r_var_50 <- usdm::Variogram(r, cutoff = 50000, size = 100)
-#r_var_100 <- usdm::Variogram(r, cutoff = 100000, size = 100)
+#r_var_100 <- usdm::Variogram(r, cutoff = 100000, cells = cells, size = 100)
 #r_var_200 <- usdm::Variogram(r, cutoff = 200000, size = 20)
-
-#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/semivario.RData')
 
 #using cutoff = 100000 (100 km) and size = 100, run for every year
 #loop through each year to create list and joint df
-#years = 2000:2019
+years = 2001:2018
 
 #generate annual results using dopar
-#tic()
-#var_100_ls <- foreach(i = 1:length(years)) %dopar% {
-#  usdm::Variogram(pirgd[[i]], cutoff = 100000, size = 100)
-#}
-#toc()
+tic()
+var_100_ls <- foreach(i = 1:length(years)) %dopar% {
+  usdm::Variogram(pirgd[[i]], cutoff = 100000, cells = cells, size = 100)
+}
+toc()
 
-#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/semivario.RData')
+#save.image(file='/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/semivario_sampling_grid.RData')
 
 #extract dataframes from vario objects and add year variable
-#var_100_df <- lapply(seq_along(var_100_ls), function(x) data.frame(distance = var_100_ls[[x]]@variogram$distance, 
-#                                                                   gamma = var_100_ls[[x]]@variogram$gamma, year = 1999 + x))
-
-#remove 2000 and 2019
-#var_100_df <- var_100_df[2:19]
+var_100_df <- lapply(seq_along(var_100_ls), function(x) data.frame(distance = var_100_ls[[x]]@variogram$distance, 
+                                                                   gamma = var_100_ls[[x]]@variogram$gamma, year = 1999 + x))
 
 #convert to single dataframe for plotting dataframe
-#var_df <- do.call("rbind", var_100_df)
+var_df <- do.call("rbind", var_100_df)
 
 #plot results
 ggplot(var_df, aes(x = distance, y = gamma, color = year)) +
   geom_point(size = 0.5) + theme_classic() + 
   scale_x_continuous(name = "Distance (km)", labels = c("0" = "0", "25000" = "25", 
-                                                   "50000" = "50", "75000" = "75", 
-                                                   "100000" = "100")) +
-  scale_y_continuous(name = "Gamma") + ggtitle("Semivariogram of PIRGd (2001-2018) up to 100 km with 100 Unique Samples/Year") +
+                                                        "50000" = "50", "75000" = "75", 
+                                                        "100000" = "100")) +
+  scale_y_continuous(name = "Gamma") + ggtitle("Semivariogram of PIRGd (2001-2018) from Sampling Grid \n up to 100 km with 100 Unique Samples/Year") +
   scale_color_viridis() + labs(color = "Year") + geom_vline(xintercept = 16000, linetype = "dotted", size = 1) +
   annotate(geom = "text", x=21000, y=650, label = "16 km", fontface = 2)
-ggsave("output/semivariogram.png")
+ggsave("output/semivariogram_sampling_grid_2020_06_24.png")
 
 #what would it look like to sample landscape at 16 km?
 #16 km is every 250 m * 4 * 16 = every 64th cell

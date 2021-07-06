@@ -1,0 +1,313 @@
+---
+title: "Summary Statistics of Contemporary and Future Model Co-Variates"
+author: "Ethan Berman"
+date: "12/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, message = F}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath('/Volumes/SSD/climate_effects'))
+```
+
+#Caveats
+
+-Comtemporary co-variates are sampled on grid with equal numbers of observations from 3 land cover types. Future co-variates include entire state of WY.
+
+```{r, echo = F, message = F}
+#this code generates various summary statistics to explore issues
+#with extreme values and how they are projected into the future.
+#it is exploratory in nature and will direct the process used 
+#to build the final model
+
+#load packages
+library(rgdal)
+library(sp)
+library(raster)
+library(tidyverse)
+library(ggplot2)
+library(qwraps2)
+
+#set qwraps markup to markdown
+options(qwraps2_markup = "markdown")
+options(qwraps2_frmt_digits = 2)
+
+#######################################################
+###SUMMARY STATISTICS CONTEMPORARY MODEL CO-VARIATES###
+#######################################################
+
+#load contemporary pirgd model data
+load('/Users/Ediz/Team Braintree Dropbox/Ethan Berman/R Projects/climate-pheno-wy/pirgd_dat_2020_10_18.RData')
+
+#remove missing and unwanted values
+
+#put the variables with different elevation levels into single columns
+dat$rain_elev <- rowSums(data.frame(dat$rain_low_mar_apr, dat$rain_med_mmar_mmay, dat$rain_hi_apr_may), na.rm = T)
+dat$gdd_elev <- rowSums(data.frame(dat$gdd_low_apr, dat$gdd_med_mapr_mmay, dat$gdd_hi_may), na.rm = T)
+dat$vp_min_elev <- rowSums(data.frame(dat$vp_min_low_mar_apr, dat$vp_min_med_mmar_mmay, dat$vp_min_hi_apr_may), na.rm = T)
+dat$vp_avg_elev <- rowSums(data.frame(dat$vp_avg_low_mar_apr, dat$vp_avg_med_mmar_mmay, dat$vp_avg_hi_apr_may), na.rm = T)
+
+#change evergreen to 3 instead of 4
+dat$lc[dat$lc == 4] <- 3
+
+#load into new dataframe
+dat2 <- dat
+
+#remove columns with missing data due to elevation levels
+dat2 <- select(dat2, -c(rain_low_mar_apr, rain_med_mmar_mmay, rain_hi_apr_may,
+                        gdd_low_apr, gdd_med_mapr_mmay, gdd_hi_may,
+                        vp_min_low_mar_apr, vp_min_med_mmar_mmay, vp_min_hi_apr_may,
+                        vp_avg_low_mar_apr, vp_avg_med_mmar_mmay, vp_avg_hi_apr_may))
+
+#remove all veg layers since we are moving forward without them
+dat2 <- select(dat2, -c(herb_homer_ann, sage_homer_ann, shrub_homer_ann, herb_homer,
+                        sage_homer, shrub_homer, ann_forb_rap, bare_ground_rap,
+                        perenn_forb_rap, shrub_rap, tree_rap, ann_perenn_forb_rap))
+
+#remove vapor pressure variables
+dat2 <- select(dat2, -c(vp_min_elev, vp_avg_elev, vp_min_jan_apr, vp_avg_jan_apr))
+
+#remove time1-PIRGd variables
+dat2 <- select(dat2, -c(solar_jan_pirgd, rain_oct_pirgd, rain_jan_pirgd,
+                        gdd_jan_pirgd, pdsi_jan_pirgd_mean, pdsi_jan_pirgd_min,
+                        pdsi_jan_pirgd_med))
+
+#remove vpd by elev. keep in values from jan-apr
+dat2 <- select(dat2, -c(vpd_tmax_mean_elev, vpd_tmin_mean_elev, vpd_tavg_mean_elev))
+
+
+#remove any remaining missing data points for PIRGd or snowmelt
+#2 points for pirgd
+dat2 <- dat2[is.na(dat2$pirgd) == 0,]
+#dat2 <- dat2[is.na(dat2$ss) == 0,]
+#200 points for snowmelt
+dat2 <- dat2[is.na(dat2$snowmelt) == 0,]
+
+#any other missing points?
+#may need to remove the variables that include snowmelt and pirgd...
+#16% of samples have PIRGd before snowmelt...
+sum(is.na(dat2))
+
+#keep only the co-variate columns we want
+dat2 <- dat2[,colnames(dat2) %in% c('id', 'year', 'pirgd', 'lc', 'pdsi_mar_apr_min',
+                                    'snow_oct_apr', 'gdd_jan_apr', 'rain_mar_may')]
+
+#create summary statistics table of 4 co-variates
+#create output list qwraps
+summary_contemp <-
+  list("Rain Mar-May (mm)" =
+         list("min"       = ~ round(min(rain_mar_may), 2),
+              "max"       = ~ round(max(rain_mar_may), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(rain_mar_may),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(rain_mar_may), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(rain_mar_may)),
+       "Snow Oct-Apr (mm)" =
+         list("min"       = ~ round(min(snow_oct_apr), 2),
+              "max"       = ~ round(max(snow_oct_apr), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(snow_oct_apr),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(snow_oct_apr), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(snow_oct_apr)),
+       "GDD Jan-Apr (deg C)" =
+         list("min"       = ~ round(min(gdd_jan_apr), 2),
+              "max"       = ~ round(max(gdd_jan_apr), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(gdd_jan_apr),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(gdd_jan_apr), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(gdd_jan_apr)),
+       "Minimum scPDSI Mar-Apr" =
+         list("min"       = ~ round(min(pdsi_mar_apr_min), 2),
+              "max"       = ~ round(max(pdsi_mar_apr_min), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(pdsi_mar_apr_min),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(pdsi_mar_apr_min), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(pdsi_mar_apr_min))
+  )
+
+##################################################
+###SUMMARY STATISTICS CLIMATE MODEL CO-VARIATES###
+##################################################
+
+#only do the middle scenario and the other potential annual scenario 1999/2040/2080 rcp 8.5
+dat_gem_1999 <- read.csv('wy_projections/dat/dat_HadGEM2-ES365_rcp85_1999.csv')
+dat_gem_2040 <- read.csv('wy_projections/dat/dat_HadGEM2-ES365_rcp85_2040.csv')
+dat_gem_2070 <- read.csv('wy_projections/dat/dat_HadGEM2-ES365_rcp85_2070.csv')
+dat_inmcm_2040 <- read.csv('wy_projections/dat/dat_inmcm4_rcp85_2040.csv')
+dat_inmcm_2070 <- read.csv('wy_projections/dat/dat_inmcm4_rcp85_2070.csv')
+
+#create summary statistics table of 4 co-variates
+#create output list qwraps
+summary_proj <-
+  list("Rain Mar-May (mm)" =
+         list("min"       = ~ round(min(rain, na.rm = T), 2),
+              "max"       = ~ round(max(rain, na.rm = T), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(rain, na_rm = T, show_n = 'never'),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(rain, na_rm = T, show_n = 'never'), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(rain, na_rm = T, show_n = 'never')),
+       "Snow Oct-Apr (mm)" =
+         list("min"       = ~ round(min(snow, na.rm = T), 2),
+              "max"       = ~ round(max(snow, na.rm = T), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(snow, na_rm = T, show_n = 'never'),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(snow, na_rm = T, show_n = 'never'), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(snow, na_rm = T, show_n = 'never')),
+       "GDD Jan-Apr (deg C)" =
+         list("min"       = ~ round(min(gdd, na.rm = T), 2),
+              "max"       = ~ round(max(gdd, na.rm = T), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(gdd, na_rm = T, show_n = 'never'),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(gdd, na_rm = T, show_n = 'never'), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(gdd, na_rm = T, show_n = 'never')),
+       "Minimum scPDSI Mar-Apr" =
+         list("min"       = ~ round(min(pdsi, na.rm = T), 2),
+              "max"       = ~ round(max(pdsi, na.rm = T), 2),
+              "mean (sd)" = ~ qwraps2::mean_sd(pdsi, na_rm = T, show_n = 'never'),
+              "mean (95% ci)" = ~ print(qwraps2::mean_ci(pdsi, na_rm = T, show_n = 'never'), show_level = TRUE),
+              "median (iqr)"    = ~ qwraps2::median_iqr(pdsi, na_rm = T, show_n = 'never'))
+  )
+
+#create summary table
+summary <- cbind(summary_table(dat2, summary_contemp),
+                 summary_table(dat_gem_1999, summary_proj),
+                 summary_table(dat_gem_2040, summary_proj),
+                 summary_table(dat_gem_2070, summary_proj),
+                 summary_table(dat_inmcm_2040, summary_proj),
+                 summary_table(dat_inmcm_2070, summary_proj))
+
+#investigate 95th percentiles and the number of projection values above/below thresholds
+#allocate output df
+outl <- data.frame(dataset = character(), value = character(), rain = numeric(), snow = numeric(),
+                   gdd = numeric(), pdsi = numeric())
+
+#find the upper and lower quantiles of the contemporary data and bind to df
+outl <- rbind(outl,
+              data.frame(dataset = 'contemporary',
+                         value = '5th percentile comtemp',
+                         rain = quantile(dat2$rain_mar_may, 0.05) %>% round(2),
+                         snow = quantile(dat2$snow_oct_apr, 0.05) %>% round(2),
+                         gdd = quantile(dat2$gdd_jan_apr, 0.05) %>% round(2),
+                         pdsi = quantile(dat2$pdsi_mar_apr_min, 0.05) %>% round(2)),
+              data.frame(dataset = 'contemporary', 
+                         value = '95th percentile comtemp',
+                         rain = quantile(dat2$rain_mar_may, 0.95) %>% round(2),
+                         snow = quantile(dat2$snow_oct_apr, 0.95) %>% round(2),
+                         gdd = quantile(dat2$gdd_jan_apr, 0.95) %>% round(2),
+                         pdsi = quantile(dat2$pdsi_mar_apr_min, 0.95) %>% round(2)))
+
+#calc the percentage of future co-variate values outside the range
+outl <- rbind(outl,
+              data.frame(dataset = 'HadGEM RCP 8.5 2000-2019', 
+                         value = 'Percent of values under 5th percentile',
+                         rain = ((dat_gem_1999 %>% .[.$rain < outl[1, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_gem_1999 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_gem_1999 %>% .[.$snow < outl[1, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_gem_1999 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_gem_1999 %>% .[.$gdd < outl[1, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_gem_1999 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_gem_1999 %>% .[.$pdsi < outl[1, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_gem_1999 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'HadGEM RCP 8.5 2000-2019', 
+                         value = 'Percent of values above 95th percentile',
+                         rain = ((dat_gem_1999 %>% .[.$rain > outl[2, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_gem_1999 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_gem_1999 %>% .[.$snow > outl[2, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_gem_1999 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_gem_1999 %>% .[.$gdd > outl[2, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_gem_1999 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_gem_1999 %>% .[.$pdsi > outl[2, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_gem_1999 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'HadGEM RCP 8.5 2040-2069', 
+                         value = 'Percent of values under 5th percentile',
+                         rain = ((dat_gem_2040 %>% .[.$rain < outl[1, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_gem_2040 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_gem_2040 %>% .[.$snow < outl[1, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_gem_2040 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_gem_2040 %>% .[.$gdd < outl[1, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_gem_2040 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_gem_2040 %>% .[.$pdsi < outl[1, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_gem_2040 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'HadGEM RCP 8.5 2040-2069', 
+                         value = 'Percent of values above 95th percentile',
+                         rain = ((dat_gem_2040 %>% .[.$rain > outl[2, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_gem_2040 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_gem_2040 %>% .[.$snow > outl[2, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_gem_2040 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_gem_2040 %>% .[.$gdd > outl[2, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_gem_2040 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_gem_2040 %>% .[.$pdsi > outl[2, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_gem_2040 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'HadGEM RCP 8.5 2070-2099', 
+                         value = 'Percent of values under 5th percentile',
+                         rain = ((dat_gem_2070 %>% .[.$rain < outl[1, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_gem_2070 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_gem_2070 %>% .[.$snow < outl[1, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_gem_2070 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_gem_2070 %>% .[.$gdd < outl[1, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_gem_2070 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_gem_2070 %>% .[.$pdsi < outl[1, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_gem_2070 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'HadGEM RCP 8.5 2070-2099', 
+                         value = 'Percent of values above 95th percentile',
+                         rain = ((dat_gem_2070 %>% .[.$rain > outl[2, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_gem_2070 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_gem_2070 %>% .[.$snow > outl[2, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_gem_2070 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_gem_2070 %>% .[.$gdd > outl[2, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_gem_2070 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_gem_2070 %>% .[.$pdsi > outl[2, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_gem_2070 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'inmcm RCP 8.5 2040-2069', 
+                         value = 'Percent of values under 5th percentile',
+                         rain = ((dat_inmcm_2040 %>% .[.$rain < outl[1, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2040 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_inmcm_2040 %>% .[.$snow < outl[1, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2040 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_inmcm_2040 %>% .[.$gdd < outl[1, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_inmcm_2040 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_inmcm_2040 %>% .[.$pdsi < outl[1, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2040 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'inmcm RCP 8.5 2040-2069', 
+                         value = 'Percent of values above 95th percentile',
+                         rain = ((dat_inmcm_2040 %>% .[.$rain > outl[2, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2040 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_inmcm_2040 %>% .[.$snow > outl[2, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2040 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_inmcm_2040 %>% .[.$gdd > outl[2, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_inmcm_2040 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_inmcm_2040 %>% .[.$pdsi > outl[2, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2040 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'inmcm RCP 8.5 2070-2099', 
+                         value = 'Percent of values under 5th percentile',
+                         rain = ((dat_inmcm_2070 %>% .[.$rain < outl[1, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2070 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_inmcm_2070 %>% .[.$snow < outl[1, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2070 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_inmcm_2070 %>% .[.$gdd < outl[1, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_inmcm_2070 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_inmcm_2070 %>% .[.$pdsi < outl[1, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2070 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)),
+              data.frame(dataset = 'inmcm RCP 8.5 2070-2099', 
+                         value = 'Percent of values above 95th percentile',
+                         rain = ((dat_inmcm_2070 %>% .[.$rain > outl[2, 'rain'], 'rain'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2070 %>% .[, 'rain'] %>% na.omit %>% length) * 100) %>% round(2),
+                         snow = ((dat_inmcm_2070 %>% .[.$snow > outl[2, 'snow'], 'snow'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2070 %>% .[, 'snow'] %>% na.omit %>% length) * 100) %>% round(2),
+                         gdd = ((dat_inmcm_2070 %>% .[.$gdd > outl[2, 'gdd'], 'gdd'] %>% na.omit %>% length) /
+                                  (dat_inmcm_2070 %>% .[, 'gdd'] %>% na.omit %>% length) * 100) %>% round(2),
+                         pdsi = ((dat_inmcm_2070 %>% .[.$pdsi > outl[2, 'pdsi'], 'pdsi'] %>% na.omit %>% length) /
+                                   (dat_inmcm_2070 %>% .[, 'pdsi'] %>% na.omit %>% length) * 100) %>% round(2)))
+
+
+```
+
+```{r results = "asis", echo = F, message = F}
+
+#produce table output
+print(summary,
+      rtitle = "Summary Statistics",
+      cnames = c("Contemporary (2001-2018)", "HadGEM RCP 8.5 2000-2019",
+                 "HadGEM RCP 8.5 2040-2069",
+                 "HadGEM RCP 8.5 2070-2099", "inmcm4 RCP 8.5 2040-2069",
+                 "inmcm4 RCP 8.5 2070-2099"))
+
+knitr::kable(outl)
+
+```
+
+
+

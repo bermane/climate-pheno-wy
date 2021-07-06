@@ -1,0 +1,317 @@
+---
+title: "Summary Statistics of PIRGd in WY using DLC"
+author: "Ethan Berman"
+date: "3/3/2020"
+output: html_document
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/Volumes/SSD/climate_effects')
+
+```
+
+## Overview
+
+This document contains summary statistics of PIRGd in WY from 2002-2018 from the DLC phenology dataset. Stats are calculated over the entire state and a smaller sub-region in SW Wyoming corresponding to sagebrush treatments.
+
+## Mean PIRGd in Wyoming and SW Wyoming
+
+```{r, echo=FALSE, message=FALSE, warning = F}
+#load packages
+library(rgdal)
+library(sp)
+library(raster)
+library(tidyverse)
+library(rasterVis)
+library(viridis)
+
+#load wyoming shapefile
+wy <- readOGR('reference/wyoming.shp', verbose = FALSE)
+
+#transformto CRS of emodis
+wy <- spTransform(wy, "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs")
+
+#load PIRGd brick
+pirgd <- brick('dlc/maxIRGdate_wy_laea_2000_2019.tif')
+
+#only use 2002 to 2018 to be consistent with eMODIS
+pirgd <- pirgd[[3:19]]
+
+#mask to WY before calc summary stats
+pirgd <- mask(pirgd, wy)
+
+#calc mean pirgd for each pixel
+pirgd_m <- calc(pirgd, function(x) {mean(x,na.rm = T)})
+
+#calc number of na values in annual layers
+pirgd_na <- calc(pirgd, function(x) {sum(is.na(x))})
+
+#only save pirgd mean value if less than half of years are missing
+#we have 17 years total
+pirgd_m[pirgd_na > 8] <- NA
+
+#round to whole DOY
+pirgd_m <- round(pirgd_m)
+
+#write pirgd mean raster
+#writeRaster(pirgd_m, './emodis/pirgd/pirgd_mean_wy_2002_2018.tif', format = "GTiff", overwrite = T)
+
+#load shapefile of treatments in SW WY
+treat <- readOGR('/Users/Ediz/Team Braintree Dropbox/Ethan Berman/USGS/forage project/Phase 2/Initial Treatment Polygons/Project_Plannig_Areas_SWRMDCopy2.shp', verbose = FALSE)
+
+#transform to CRS of emodis
+treat <- spTransform(treat, "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs")
+
+#plot treatments in WY
+plot(wy, main = "Treatment Polygons in SW Wyoming")
+plot(treat, add = T)
+
+#calculate treatment bounding box
+treat_bb <- bbox(treat)
+treat_bb <- as(raster::extent(treat_bb), "SpatialPolygons")
+proj4string(treat_bb) <- "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs"
+
+#buffer at 2 km
+treat_bb <- buffer(treat_bb, width = 2000)
+
+#crop to WY
+treat_bb <- crop(treat_bb, wy)
+
+#plot mean PIRGd in WY
+## Set up color breaks
+my_at <- seq(0, 250, 10)
+my_ticks <- seq(0, 250, 50)
+
+my_col <- list(at=my_at, ## where the colors change
+                   labels=list(
+                     at=my_ticks ## where to print labels
+                     ))
+col <- viridis(length(my_at)-1, direction = -1)
+
+#plot
+levelplot(pirgd_m, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Mean PIRGd in Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2))) +
+        layer(sp.lines(wy, col = 'black')) +
+        layer(sp.lines(treat_bb, col = 'black'))
+
+#plot histogram of mean pirgd
+hist(pirgd_m[pirgd_m >= 0 & pirgd_m <= 250], main = "Mean PIRGd in Wyoming from 2002-2018", xlab = "DOY",
+     xlim = c(0, 250), breaks = seq(0,250,10))
+
+#plot boxplot of mean pirgd
+boxplot(pirgd_m, ylab = "DOY", main = "Boxplot of Mean PIRGd dates in WY from 2002-2018",
+        ylim = c(0, 250))
+
+#crop mean pirgd to this bb
+pirgd_m_bb <- crop(pirgd_m, treat_bb)
+
+#plot pirgd mean raster for SW Wyoming
+levelplot(pirgd_m_bb, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Mean PIRGd in SW Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2)))
+
+#plot histogram of mean pirgd
+hist(pirgd_m_bb[pirgd_m_bb >= 0 & pirgd_m_bb <= 250], main = "Mean PIRGd in SW Wyoming from 2002-2018", xlab = "DOY",
+     xlim = c(0, 250), breaks = seq(0,250,10))
+
+#remove variables
+rm(pirgd_m, pirgd_m_bb)
+
+```
+
+## Median PIRGd in Wyoming and SW Wyoming
+
+```{r, echo=FALSE, message=FALSE}
+#calc median pirgd for each pixel
+pirgd_med <- calc(pirgd, function(x) {median(x,na.rm = T)})
+
+#only save pirgd mean value if less than half of years are missing
+#we have 17 years total
+pirgd_med[pirgd_na > 8] <- NA
+
+#round to whole DOY
+pirgd_med <- round(pirgd_med)
+
+#write pirgd median raster
+#writeRaster(pirgd_med, './emodis/pirgd/pirgd_median_wy_2002_2018.tif', format = "GTiff", overwrite = F)
+
+#plot median PIRGd in WY
+levelplot(pirgd_med, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Median PIRGd in Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2))) +
+        layer(sp.lines(wy, col = 'black')) +
+        layer(sp.lines(treat_bb, col = 'black'))
+
+#plot histogram of median pirgd
+hist(pirgd_med[pirgd_med >= 0 & pirgd_med <= 250], main = "Median PIRGd in Wyoming from 2002-2018", xlab = "DOY",
+     xlim = c(0, 250), breaks = seq(0,250,10))
+
+#plot boxplot of median pirgd
+boxplot(pirgd_med, ylab = "DOY", main = "Boxplot of Median PIRGd dates in WY from 2002-2018",
+        ylim = c(0, 250))
+
+#crop median pirgd to this bb
+pirgd_med_bb <- crop(pirgd_med, treat_bb)
+
+#plot pirgd median raster for SW Wyoming
+levelplot(pirgd_med_bb, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Median PIRGd in SW Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2)))
+
+#plot histogram of median pirgd
+hist(pirgd_med_bb[pirgd_med_bb >= 0 & pirgd_med_bb <= 250], main = "Median PIRGd in SW Wyoming from 2002-2018", xlab = "DOY",
+     xlim = c(0, 250), breaks = seq(0,250,10))
+
+#remove variables
+rm(pirgd_med, pirgd_med_bb)
+
+```
+
+## Variance of PIRGd in Wyoming and SW Wyoming
+
+Variance > 5000 set to NA.
+
+```{r, echo=FALSE, message=FALSE}
+#calc var pirgd for each pixel
+pirgd_var <- calc(pirgd, function(x) {var(x,na.rm = T)})
+
+#only save pirgd var value if less than half of years are missing
+#we have 17 years total
+pirgd_var[pirgd_na > 8] <- NA
+
+#round to whole DOY
+pirgd_var <- round(pirgd_var)
+
+pirgd_var2 <- pirgd_var
+pirgd_var2[pirgd_var2 > 5000] <- NA
+#write pirgd var raster
+#writeRaster(pirgd_var, './emodis/pirgd/pirgd_var_wy_2002_2018.tif', format = "GTiff", overwrite = F)
+
+#plot var PIRGd in WY
+## Set up color breaks
+my_at <- seq(0, 4000, 250)
+my_ticks <- seq(0, 4000, 500)
+
+my_col <- list(at=my_at, ## where the colors change
+                   labels=list(
+                     at=my_ticks ## where to print labels
+                     ))
+col <- viridis(length(my_at)-1, direction = -1)
+
+#plot
+levelplot(pirgd_var2, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Variance of PIRGd in Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2))) +
+        layer(sp.lines(wy, col = 'black')) +
+        layer(sp.lines(treat_bb, col = 'black'))
+
+#plot histogram of var pirgd
+hist(pirgd_var2, main = "Variance of PIRGd in Wyoming from 2002-2018", xlab = "Days",
+     xlim = c(0, 5000), breaks = seq(0,5000,100))
+
+#crop var pirgd to this bb
+pirgd_var_bb <- crop(pirgd_var2, treat_bb)
+
+#plot pirgd var raster for SW Wyoming
+levelplot(pirgd_var_bb, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Variance of PIRGd in SW Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2))) +
+        layer(sp.lines(wy, col = 'black')) +
+        layer(sp.lines(treat_bb, col = 'black'))
+
+#plot histogram of var pirgd
+hist(pirgd_var_bb, main = "Variance of PIRGd in SW Wyoming from 2002-2018", xlab = "Days",
+     xlim = c(0, 5000), breaks = seq(0,5000,100))
+
+#remove variables
+rm(pirgd_var, pirgd_var2, pirgd_var_bb)
+```
+
+## Mid-Range of PIRGd in Wyoming and SW Wyoming
+
+Min + (Max-Min)/2
+
+```{r, echo=FALSE, message=FALSE}
+#calc mid pirgd for each pixel
+pirgd_max <- calc(pirgd, function(x) {
+        if(sum(is.na(x)) < 17) {max(x, na.rm = T)} else{NA}
+        })
+
+pirgd_min <- calc(pirgd, function(x) {
+        if(sum(is.na(x)) < 17) {min(x, na.rm = T)} else{NA}
+        })
+
+pirgd_midrange <- pirgd_min + (pirgd_max - pirgd_min)/2
+
+#only save pirgd midrange value if less than half of years are missing
+#we have 17 years total
+pirgd_midrange[pirgd_na > 8] <- NA
+
+#round to whole DOY
+pirgd_midrange <- round(pirgd_midrange)
+
+#write pirgd midrange raster
+#writeRaster(pirgd_midrange, '/Volumes/SSD/climate_effects/emodis/pirgd/pirgd_midrange_wy_2002_2018.tif', format = "GTiff", overwrite = F)
+
+#plot midrange PIRGd in WY
+## Set up color breaks
+my_at <- seq(0, 250, 10)
+my_ticks <- seq(0, 250, 50)
+
+my_col <- list(at=my_at, ## where the colors change
+                   labels=list(
+                     at=my_ticks ## where to print labels
+                     ))
+col <- viridis(length(my_at)-1, direction = -1)
+
+levelplot(pirgd_midrange, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Midrange of PIRGd in Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2))) +
+        layer(sp.lines(wy, col = 'black')) +
+        layer(sp.lines(treat_bb, col = 'black'))
+
+#plot histogram of midrange pirgd
+hist(pirgd_midrange[pirgd_midrange >= 0 & pirgd_midrange <= 250], main = "Midrange of PIRGd in Wyoming from 2002-2018", xlab = "DOY",
+     xlim = c(0, 250), breaks = seq(0,250,10))
+
+#plot boxplot of midrange pirgd
+boxplot(pirgd_midrange, ylab = "DOY", main = "Boxplot of Midrange of PIRGd dates in WY from 2002-2018",
+        ylim = c(0, 250))
+
+#crop midrange pirgd to this bb
+pirgd_midrange_bb <- crop(pirgd_midrange, treat_bb)
+
+#plot pirgd midrange raster for SW Wyoming
+levelplot(pirgd_midrange_bb, margin = F, col.regions = col, colorkey = my_col,
+          main = list('Midrange of PIRGd in SW Wyoming from 2002-2018'),
+          ylab.right = "DOY",
+          par.settings = list(layout.widths = list(axis.key.padding = 0,
+                                                     ylab.right = 2)))
+
+#plot histogram of median pirgd
+hist(pirgd_midrange_bb[pirgd_midrange_bb >= 0 & pirgd_midrange_bb <= 250], main = "Midrange of PIRGd in SW Wyoming from 2002-2018", xlab = "DOY",
+     xlim = c(0, 250), breaks = seq(0,250,10))
+
+#remove variables
+rm(pirgd_max, pirgd_min, pirgd_midrange, pirgd_midrange_bb)
+
+```
+
+
+
